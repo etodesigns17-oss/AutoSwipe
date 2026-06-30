@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoSwipe</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0c0d15;--bg2:#12141f;--bg3:#1a1c2a;--bg4:#1e2030;--sidebar:#0e0f1a;
+  --blue:#3b82f6;--bdim:rgba(59,130,246,.14);--bbrd:rgba(59,130,246,.3);
+  --text:#dde1f0;--t2:#6b7299;--t3:#3a3f5c;
+  --brd:rgba(255,255,255,.06);--brd2:rgba(255,255,255,.1);
+  --ok:#22c55e;--err:#ef4444;--warn:#f59e0b;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;overflow:hidden;}
+.shell{display:flex;height:100vh;width:100vw;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:88px;flex-shrink:0;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;padding:18px 0;position:relative;z-index:10;}
+.sb-logo{width:44px;height:44px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:28px;flex-shrink:0;cursor:pointer;}
+.sb-logo svg{width:22px;height:22px;stroke:#fff;stroke-width:1.8;fill:none;}
+.nav-items{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ni{width:100%;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);transition:color .15s;position:relative;border:none;background:transparent;}
+.ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none;position:relative;z-index:1;}
+.ni:hover{color:var(--text);}
+.ni.active{color:var(--blue);}
+.ni.active::before{content:'';position:absolute;inset:3px 0 3px -4px;background:var(--bg3);border-radius:10px 0 0 10px;}
+.ni .tip{position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--bg3);color:var(--text);font-size:12px;font-weight:500;white-space:nowrap;padding:5px 10px;border-radius:7px;border:1px solid var(--brd2);pointer-events:none;opacity:0;transition:opacity .15s;z-index:200;}
+.ni:hover .tip{opacity:1;}
+.sb-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.lang-pill{width:52px;height:30px;border-radius:20px;background:var(--bg3);border:1px solid var(--brd2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:.5px;transition:all .15s;}
+.lang-pill.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:20px 20px 20px 16px;}
+.pg-head{flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.pg-title{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.3px;}
+.filtra-btn{padding:8px 20px;border-radius:20px;background:var(--bg3);border:1px solid var(--brd2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;white-space:nowrap;}
+.filtra-btn:hover{background:var(--bg4);}
+.pills{flex-shrink:0;display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.pill{padding:7px 18px;border-radius:20px;background:var(--bg3);border:1px solid transparent;color:var(--t2);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.pill.active{background:var(--blue);color:#fff;}
+.pill:hover:not(.active){color:var(--text);}
+
+/* ── CONTENT CARD ── */
+.content-card{flex:1;background:var(--bg2);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
+.content-scroll{flex:1;overflow-y:auto;position:relative;}
+.content-scroll::-webkit-scrollbar{width:4px;}
+.content-scroll::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px;}
+
+/* ── BOTTOM TOOLBAR ── */
+.bottom-toolbar{flex-shrink:0;height:56px;border-top:1px solid var(--brd);display:flex;align-items:center;justify-content:center;gap:28px;}
+.bt-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);transition:all .15s;background:transparent;border:none;}
+.bt-icon:hover{color:var(--text);background:var(--bg3);}
+.bt-icon.active{color:var(--blue);}
+.bt-icon svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;fill:none;}
+
+/* ── FEED ── */
+.feed-inner{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;min-height:400px;}
+.card-stack{position:relative;width:100%;max-width:360px;flex:1;display:flex;align-items:center;justify-content:center;}
+.swipe-card{position:absolute;width:100%;max-width:360px;background:var(--bg3);border-radius:18px;border:1px solid var(--brd2);cursor:grab;user-select:none;transform-origin:50% 110%;will-change:transform;overflow:hidden;}
+.swipe-card:active{cursor:grabbing;}
+.swipe-card.anim{transition:transform .42s cubic-bezier(.25,.46,.45,.94),opacity .42s ease;}
+.cz2{transform:scale(0.95) translateY(14px);z-index:1;pointer-events:none;}
+.cz1{transform:scale(0.90) translateY(26px);z-index:0;pointer-events:none;}
+.ctop{z-index:2;}
+.card-img{width:100%;height:210px;background:var(--bg4);position:relative;overflow:hidden;}
+.card-img-slide{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;}
+.card-img-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.card-img-ph svg{width:64px;height:64px;stroke:var(--t3);stroke-width:1;fill:none;opacity:.5;}
+.card-fade{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg3));pointer-events:none;}
+.gallery-dots{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:3;}
+.gdot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);transition:background .2s;}
+.gdot.active{background:#fff;}
+.g-arr{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.45);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;font-size:14px;transition:background .15s;}
+.g-arr:hover{background:rgba(0,0,0,.7);}
+.g-arr.left{left:8px;}
+.g-arr.right{right:8px;}
+.img-count-badge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;z-index:3;}
+.like-lbl{position:absolute;top:16px;left:16px;border:2px solid var(--ok);color:var(--ok);padding:4px 12px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:1px;opacity:0;transform:rotate(-12deg);pointer-events:none;z-index:4;}
+.nope-lbl{position:absolute;top:16px;right:16px;border:2px solid var(--err);color:var(--err);padding:4px 12px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:1px;opacity:0;transform:rotate(12deg);pointer-events:none;z-index:4;}
+.card-body{padding:12px 16px 0;cursor:pointer;}
+.c-make{font-size:10px;font-weight:700;color:var(--blue);letter-spacing:.8px;text-transform:uppercase;}
+.c-title{font-size:18px;font-weight:700;margin:3px 0 5px;}
+.c-price{font-size:19px;font-weight:700;margin-bottom:8px;}
+.c-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.ctag{padding:3px 9px;background:var(--bg4);border:1px solid var(--brd);border-radius:20px;font-size:11px;color:var(--t2);}
+.ctag.boost{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--warn);}
+.ctag.dealer-tag{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:var(--blue);}
+.ctag.rental-tag{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--ok);}
+.ctag.user-tag{background:var(--bg4);border-color:var(--brd2);color:var(--t2);}
+.card-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--brd);margin-top:2px;}
+.seller-row{display:flex;align-items:center;gap:8px;}
+.s-av{width:28px;height:28px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--blue);border:1px solid var(--brd2);flex-shrink:0;}
+.s-name{font-size:12px;font-weight:600;}
+.s-ph{font-size:11px;color:var(--t2);}
+.card-acts{display:flex;gap:6px;}
+.ca{width:34px;height:34px;border-radius:50%;border:1px solid var(--brd2);background:var(--bg4);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.ca:hover{transform:scale(1.1);}
+.ca.nope:hover{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);}
+.ca.save:hover{background:var(--bdim);border-color:var(--bbrd);}
+.ca.save.saved{background:var(--blue);border-color:var(--blue);}/* filled when saved */
+.ca.like:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.4);}
+.ca svg{width:14px;height:14px;fill:none;stroke-width:2.2;}
+.ca.nope svg{stroke:var(--err);}
+.ca.save svg{stroke:var(--blue);}
+.ca.save.saved svg{stroke:#fff;}
+.ca.like svg{stroke:var(--ok);}
+.card-ctr{font-size:11px;color:var(--t3);text-align:center;padding:6px 0 2px;flex-shrink:0;}
+.no-cards{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 20px;color:var(--t2);}
+.no-cards svg{width:52px;height:52px;stroke:var(--t3);stroke-width:1;fill:none;}
+.no-cards h3{font-size:17px;font-weight:700;color:var(--text);}
+.no-cards p{font-size:13px;text-align:center;}
+.nc-btn{padding:9px 26px;border-radius:20px;background:var(--blue);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;margin-top:4px;}
+
+/* ── GALLERY MODAL ── */
+.gallery-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:600;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.gallery-modal-bg.open{display:flex;}
+.gallery-img-wrap{position:relative;max-width:90vw;max-height:75vh;}
+.gallery-img-wrap img{max-width:90vw;max-height:75vh;border-radius:10px;object-fit:contain;}
+.gal-close{position:absolute;top:-16px;right:-16px;width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.gal-nav{display:flex;align-items:center;gap:16px;}
+.gal-btn{width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.gal-ctr{font-size:13px;color:var(--t2);}
+
+/* ── MESSAGES ── */
+.msgs-wrap{padding:20px;}
+.msgs-hd{font-size:15px;font-weight:700;margin-bottom:14px;}
+.msg-list{display:flex;flex-direction:column;gap:7px;}
+.msg-item{display:flex;align-items:center;gap:12px;padding:12px 13px;background:var(--bg3);border:1px solid var(--brd);border-radius:10px;cursor:pointer;transition:border-color .15s;}
+.msg-item:hover{border-color:var(--brd2);}
+.msg-av{width:36px;height:36px;border-radius:50%;background:var(--bg4);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--blue);flex-shrink:0;}
+.msg-info{flex:1;}
+.msg-name{font-size:13px;font-weight:600;}
+.msg-preview{font-size:12px;color:var(--t2);margin-top:1px;}
+.msg-time{font-size:11px;color:var(--t3);}
+.msg-unread{width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;}
+.thread-hd{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--brd);flex-shrink:0;}
+.thread-back{background:none;border:none;color:var(--t2);cursor:pointer;font-size:22px;padding:0;}
+.thread-name{font-size:14px;font-weight:600;}
+.thread-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px;}
+.thread-body::-webkit-scrollbar{width:4px;}
+.thread-body::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px;}
+.bubble{max-width:75%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.5;}
+.bubble.me{background:var(--blue);color:#fff;align-self:flex-end;border-radius:12px 12px 2px 12px;}
+.bubble.them{background:var(--bg3);color:var(--text);align-self:flex-start;border-radius:12px 12px 12px 2px;}
+.bubble .btime{font-size:10px;opacity:.6;margin-top:3px;}
+.thread-input{display:flex;align-items:center;gap:8px;padding:12px 14px;border-top:1px solid var(--brd);flex-shrink:0;}
+.thread-input input{flex:1;background:var(--bg3);border:1px solid var(--brd2);border-radius:20px;color:var(--text);padding:8px 14px;font-size:13px;font-family:'Inter',sans-serif;outline:none;}
+.thread-input input:focus{border-color:var(--blue);}
+.send-btn{width:34px;height:34px;border-radius:50%;background:var(--blue);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.send-btn svg{width:14px;height:14px;stroke:#fff;stroke-width:2.2;fill:none;}
+
+/* ── FORMS ── */
+.view{padding:20px;max-width:560px;}
+.fg{margin-bottom:12px;}
+.fl{display:block;font-size:12px;font-weight:500;color:var(--t2);margin-bottom:4px;letter-spacing:.2px;}
+.fi,.fs,.ft{width:100%;background:var(--bg3);border:1px solid var(--brd2);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;}
+.fi:focus,.fs:focus,.ft:focus{border-color:var(--blue);}
+.fs option{background:var(--bg3);}
+.ft{resize:vertical;min-height:74px;}
+.ir{display:flex;gap:10px;}.ir .fg{flex:1;}
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;transition:all .15s;width:100%;}
+.btn-p{background:var(--blue);color:#fff;}.btn-p:hover{opacity:.9;}
+.btn-o{background:transparent;color:var(--blue);border:1px solid var(--bbrd);}.btn-o:hover{background:var(--bdim);}
+.btn-g{background:var(--bg3);color:var(--t2);border:1px solid var(--brd);}.btn-g:hover{color:var(--text);}
+.btn-d{background:rgba(239,68,68,.1);color:var(--err);border:1px solid rgba(239,68,68,.2);}
+.btn-sm{padding:6px 12px;font-size:12px;width:auto;border-radius:6px;}
+
+/* ── GRIDS ── */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.car-card{background:var(--bg3);border:1px solid var(--brd);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.car-card:hover{border-color:var(--brd2);}
+.cc-img{height:115px;background:var(--bg4);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.cc-img svg{width:38px;height:38px;stroke:var(--t3);stroke-width:1;fill:none;}
+.cc-img img{width:100%;height:100%;object-fit:cover;}
+.cc-body{padding:9px 11px;}
+.cc-make{font-size:10px;font-weight:700;color:var(--blue);letter-spacing:.5px;text-transform:uppercase;}
+.cc-name{font-size:13px;font-weight:600;margin:2px 0;}
+.cc-price{font-size:14px;font-weight:700;color:var(--blue);}
+.cc-meta{font-size:11px;color:var(--t2);margin-top:2px;}
+
+/* ── LIST CARDS (dealers/rentals) ── */
+.lcard{background:var(--bg3);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:8px;}
+.lc-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.lc-av{width:44px;height:44px;border-radius:10px;background:var(--bg4);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--blue);flex-shrink:0;}
+.lc-name{font-size:14px;font-weight:600;}
+.lc-sub{font-size:12px;color:var(--t2);margin-top:2px;}
+.vbadge{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--blue);background:var(--bdim);border:1px solid var(--bbrd);border-radius:10px;padding:2px 7px;margin-top:3px;}
+.vbadge svg{width:8px;height:8px;stroke:currentColor;stroke-width:3;fill:none;}
+.lc-stats{display:flex;gap:14px;margin-bottom:10px;}
+.lc-stat{font-size:12px;color:var(--t2);}
+.lc-stat strong{color:var(--text);}
+.lc-acts{display:flex;gap:7px;}
+.tag-row{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0;}
+
+/* ── ACCOUNT ── */
+.acc-hd{display:flex;flex-direction:column;align-items:center;padding:28px 24px 14px;text-align:center;}
+.acc-av{width:64px;height:64px;border-radius:50%;background:var(--bg4);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--blue);margin-bottom:10px;}
+.acc-name{font-size:17px;font-weight:700;}
+.rbadge{display:inline-block;margin-top:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.rb-u{background:var(--bdim);color:var(--blue);border:1px solid var(--bbrd);}
+.rb-d{background:rgba(34,197,94,.08);color:var(--ok);border:1px solid rgba(34,197,94,.2);}
+.rb-r{background:rgba(245,158,11,.08);color:var(--warn);border:1px solid rgba(245,158,11,.2);}
+.rb-a{background:rgba(245,158,11,.12);color:var(--warn);border:1px solid rgba(245,158,11,.3);}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 14px;}
+.sbox{background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:11px;text-align:center;}
+.sv{font-size:19px;font-weight:700;color:var(--blue);}
+.sl{font-size:11px;color:var(--t2);margin-top:2px;}
+.menu-list{padding:0 20px;}
+.mi{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:9px;margin-bottom:5px;cursor:pointer;transition:border-color .15s;}
+.mi:hover{border-color:var(--brd2);}
+.mi-ic{width:30px;height:30px;border-radius:7px;background:var(--bg4);border:1px solid var(--brd);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.mi-ic svg{width:14px;height:14px;stroke:var(--t2);stroke-width:1.8;fill:none;}
+.mi-txt{flex:1;}
+.mi-title{font-size:13px;font-weight:500;}
+.mi-sub{font-size:11px;color:var(--t2);margin-top:1px;}
+.mi-arr{color:var(--t3);font-size:15px;}
+.pending-notice{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);margin-top:6px;}
+
+/* ── BOOST ── */
+.boost-box{background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:13px;margin-bottom:13px;}
+.boost-lbl{font-size:13px;font-weight:600;margin-bottom:2px;}
+.boost-sub{font-size:12px;color:var(--t2);margin-bottom:10px;}
+.boost-opts{display:flex;gap:7px;}
+.bopt{flex:1;background:var(--bg4);border:1px solid var(--brd);border-radius:8px;padding:10px 6px;cursor:pointer;text-align:center;transition:all .15s;}
+.bopt.sel,.bopt:hover{border-color:var(--blue);background:var(--bdim);}
+.bp{font-weight:700;font-size:15px;}
+.bl{font-size:11px;color:var(--t2);margin-top:2px;}
+
+/* ── UPLOAD ── */
+.upload-box{background:var(--bg3);border:1px solid var(--brd2);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s;}
+.upload-box:hover{border-color:var(--bbrd);}
+.upload-box input{display:none;}
+.uic svg{width:28px;height:28px;stroke:var(--t3);stroke-width:1.5;fill:none;margin:0 auto 6px;display:block;}
+.img-prev{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.ip-it{width:54px;height:54px;border-radius:6px;background:var(--bg4);border:1px solid var(--brd);overflow:hidden;position:relative;}
+.ip-it img{width:100%;height:100%;object-fit:cover;}
+.ip-rm{position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;background:rgba(0,0,0,.75);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+
+/* ── ALERTS ── */
+.al{padding:9px 12px;border-radius:7px;font-size:12px;margin-bottom:11px;line-height:1.5;}
+.al-w{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);color:var(--warn);}
+.al-i{background:var(--bdim);border:1px solid var(--bbrd);color:var(--blue);}
+.lim-bar{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:var(--warn);}
+
+/* ── ADMIN ── */
+.atabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.atab{padding:5px 13px;border-radius:20px;background:var(--bg3);border:1px solid var(--brd);color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;}
+.atab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.asec{display:none;}
+.asec.active{display:block;}
+.pcard{background:var(--bg3);border:1px solid var(--brd);border-radius:9px;padding:12px;margin-bottom:7px;}
+.pct{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;}
+.pnm{font-weight:600;font-size:13px;}
+.pmt{font-size:11px;color:var(--t2);margin-top:2px;line-height:1.5;}
+.sp{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;flex-shrink:0;}
+.sp-p{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2);}
+.sp-a{background:rgba(34,197,94,.1);color:var(--ok);border:1px solid rgba(34,197,94,.2);}
+.sp-r{background:rgba(239,68,68,.1);color:var(--err);border:1px solid rgba(239,68,68,.2);}
+
+/* admin dashboard all-posts list */
+.admin-post-row{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border:1px solid var(--brd);border-radius:9px;margin-bottom:6px;}
+.admin-post-thumb{width:52px;height:40px;border-radius:6px;background:var(--bg4);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.admin-post-thumb img{width:100%;height:100%;object-fit:cover;}
+.admin-post-thumb svg{width:22px;height:22px;stroke:var(--t3);stroke-width:1;fill:none;}
+.admin-post-info{flex:1;min-width:0;}
+.admin-post-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.admin-post-meta{font-size:11px;color:var(--t2);margin-top:2px;}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:flex-end;justify-content:center;padding:0;}
+@media(min-width:500px){.modal-bg{align-items:center;padding:20px;}}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--brd2);width:100%;max-width:440px;max-height:90vh;overflow-y:auto;padding:20px;position:relative;border-radius:16px 16px 0 0;}
+@media(min-width:500px){.modal{border-radius:14px;}}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px;}
+.mc{position:absolute;top:13px;right:13px;background:var(--bg3);border:1px solid var(--brd);color:var(--t2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
+.mt{font-size:17px;font-weight:700;margin-bottom:15px;}
+
+/* ── EMPTY ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:10px;color:var(--t2);text-align:center;}
+.empty svg{width:42px;height:42px;stroke:var(--t3);stroke-width:1;fill:none;}
+.empty h3{font-size:15px;font-weight:700;color:var(--text);}
+.empty p{font-size:13px;}
+
+/* ── POLICY ── */
+.policy{font-size:13px;line-height:1.75;color:var(--t2);}
+.policy h3{font-size:13px;font-weight:600;color:var(--text);margin:13px 0 4px;}
+
+/* ── COOKIE ── */
+#ck{position:fixed;bottom:14px;left:100px;right:14px;z-index:400;background:var(--bg2);border:1px solid var(--brd2);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+#ck p{flex:1;font-size:12px;color:var(--t2);min-width:140px;}
+#ck a{color:var(--blue);cursor:pointer;}
+.ck-btns{display:flex;gap:6px;}
+.ck-a{background:var(--blue);color:#fff;border:none;padding:6px 13px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;}
+.ck-d{background:transparent;color:var(--t2);border:1px solid var(--brd);padding:6px 13px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;}
+</style>
+</head>
+<body>
+
+<!-- COOKIE -->
+<div id="ck">
+  <p id="ck-text">Ne përdorim cookies për preferencat tuaja. <a onclick="showM('priv-m')" id="ck-link">Politika e Privatësisë</a></p>
+  <div class="ck-btns">
+    <button class="ck-d" onclick="dismissCk(false)" id="ck-decline">Refuzo</button>
+    <button class="ck-a" onclick="dismissCk(true)" id="ck-accept">Prano</button>
+  </div>
+</div>
+
+<!-- GALLERY MODAL -->
+<div class="gallery-modal-bg" id="gallery-modal">
+  <div class="gallery-img-wrap">
+    <button class="gal-close" onclick="closeGallery()">✕</button>
+    <img id="gal-img" src="" alt="">
+  </div>
+  <div class="gal-nav">
+    <button class="gal-btn" onclick="galMove(-1)">‹</button>
+    <span class="gal-ctr" id="gal-ctr"></span>
+    <button class="gal-btn" onclick="galMove(1)">›</button>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+    <div class="sb-logo" onclick="goPage('feed')">
+      <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    </div>
+    <div class="nav-items">
+      <button class="ni active" id="ni-feed" onclick="goPage('feed')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span class="tip" id="tip-feed">Zbulo</span>
+      </button>
+      <button class="ni" id="ni-saved" onclick="goPage('saved')">
+        <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        <span class="tip" id="tip-saved">Të ruajtura</span>
+      </button>
+      <button class="ni" id="ni-post" onclick="goPage('post')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span class="tip" id="tip-post">Posto</span>
+      </button>
+      <button class="ni" id="ni-messages" onclick="goPage('messages')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span class="tip" id="tip-messages">Mesazhe</span>
+      </button>
+      <button class="ni" id="ni-dealers" onclick="goPage('dealers')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        <span class="tip" id="tip-dealers">Kompani</span>
+      </button>
+      <!-- Rentals: dollar sign -->
+      <button class="ni" id="ni-rentals" onclick="goPage('rentals')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+        <span class="tip" id="tip-rentals">Me Qira</span>
+      </button>
+      <button class="ni" id="ni-account" onclick="goPage('account')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="tip" id="tip-account">Llogaria</span>
+      </button>
+    </div>
+    <div class="sb-bottom">
+      <button class="lang-pill active" id="lsq" onclick="setLang('sq')">SQ</button>
+      <button class="lang-pill" id="len" onclick="setLang('en')">EN</button>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main">
+    <div class="pg-head">
+      <div>
+        <div class="pg-title" id="pg-title">Zbulo</div>
+        <div class="pills" id="pill-row" style="margin-top:10px">
+          <span class="pill active" onclick="fChip(this,'all')" id="pill-all">Të gjitha</span>
+          <span class="pill" onclick="fChip(this,'dealer')" id="pill-dealer">Dealership</span>
+          <span class="pill" onclick="fChip(this,'rental')" id="pill-rental">Rentals</span>
+          <span class="pill" onclick="fChip(this,'private')" id="pill-private">Private</span>
+        </div>
+      </div>
+      <button class="filtra-btn" id="filtra-btn" onclick="showM('filter-m')" id="filtra-lbl">Filtra</button>
+    </div>
+
+    <div class="content-card">
+      <div class="content-scroll" id="content"></div>
+      <div class="bottom-toolbar">
+        <button class="bt-icon active" onclick="goPage('feed')" id="bt-feed">
+          <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </button>
+        <button class="bt-icon" onclick="goPage('post')" id="bt-post">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="bt-icon" onclick="goPage('saved')" id="bt-saved">
+          <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+        <button class="bt-icon" onclick="goPage('messages')" id="bt-messages">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- USERNAME -->
+<div class="modal-bg" id="user-m">
+  <div class="modal">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:800;color:var(--blue);margin-bottom:8px">AutoSwipe</div>
+      <div class="mt" id="m-welcome-title" style="margin-bottom:4px">Mirë se vini</div>
+      <p style="font-size:13px;color:var(--t2)" id="m-welcome-sub">Vendosni emrin tuaj për të filluar</p>
+    </div>
+    <div class="fg"><label class="fl" id="m-username-lbl">Emri i përdoruesit</label><input class="fi" id="u-nm" placeholder="p.sh. Agon_Tirana" maxlength="30"></div>
+    <div class="fg"><label class="fl" id="m-phone-lbl">Telefoni (opsional)</label><input class="fi" id="u-ph" type="tel" placeholder="+355 6X XXX XXXX"></div>
+    <button class="btn btn-p" onclick="saveUser()" id="m-start-btn">Fillo eksplorimin</button>
+  </div>
+</div>
+
+<!-- FILTER -->
+<div class="modal-bg" id="filter-m">
+  <div class="modal">
+    <button class="mc" onclick="closeM('filter-m')">✕</button>
+    <div class="mt" id="m-filter-title">Filtro kërkimin</div>
+    <div class="ir">
+      <div class="fg"><label class="fl" id="m-min-price">Çmimi min (€)</label><input class="fi" id="f-mn" type="number" placeholder="0"></div>
+      <div class="fg"><label class="fl" id="m-max-price">Çmimi max (€)</label><input class="fi" id="f-mx" type="number" placeholder="100000"></div>
+    </div>
+    <div class="ir">
+      <div class="fg"><label class="fl" id="m-yr-from">Viti nga</label><input class="fi" id="f-yf" type="number" placeholder="2000"></div>
+      <div class="fg"><label class="fl" id="m-yr-to">Viti deri</label><input class="fi" id="f-yt" type="number" placeholder="2025"></div>
+    </div>
+    <div class="fg"><label class="fl" id="m-make-lbl">Marka</label>
+      <select class="fs" id="f-br">
+        <option value="" id="m-all-opt">Të gjitha</option>
+        <option>BMW</option><option>Mercedes-Benz</option><option>Audi</option>
+        <option>Volkswagen</option><option>Toyota</option><option>Opel</option><option>Fiat</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl" id="m-fuel-lbl">Karburanti</label>
+      <select class="fs" id="f-fl">
+        <option value="" id="m-fuel-all">Të gjitha</option>
+        <option value="benzine" id="m-petrol">Benzinë</option>
+        <option value="diesel">Diesel</option>
+        <option value="hybrid" id="m-hybrid">Hibrid</option>
+        <option value="electric" id="m-electric">Elektrik</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl" id="m-city-lbl">Qyteti</label>
+      <select class="fs" id="f-ct">
+        <option value="" id="m-city-all">Të gjitha</option>
+        <option>Tiranë</option><option>Durrës</option><option>Vlorë</option><option>Shkodër</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl" id="m-km-lbl">Km maksimum</label><input class="fi" id="f-km" type="number" placeholder="200000"></div>
+    <button class="btn btn-p" onclick="applyF()" id="m-apply-btn">Apliko filtrat</button>
+  </div>
+</div>
+
+<!-- DEALER REG -->
+<div class="modal-bg" id="dealer-m">
+  <div class="modal">
+    <button class="mc" onclick="closeM('dealer-m')">✕</button>
+    <div class="mt" id="m-dealer-title">Regjistrohu si Dealer</div>
+    <div class="al al-w" id="m-dealer-info">Pas pagesës cash, administratori konfirmon dhe aktivizon llogarinë brenda 24 orësh.</div>
+    <div class="fg"><label class="fl" id="m-dealer-name-lbl">Emri i dealership-it</label><input class="fi" id="d-nm"></div>
+    <div class="fg"><label class="fl" id="m-email-lbl">Email</label><input class="fi" id="d-em" type="email"></div>
+    <div class="fg"><label class="fl" id="m-phone-d-lbl">Telefoni</label><input class="fi" id="d-ph" type="tel"></div>
+    <div class="fg"><label class="fl" id="m-city-d-lbl">Qyteti</label><input class="fi" id="d-ct"></div>
+    <div class="al al-i" style="text-align:center">
+      <div style="font-weight:700;margin-bottom:2px" id="m-dealer-cost">€30 / muaj — Pagesë cash</div>
+      <div style="font-size:12px" id="m-dealer-contact">Kontaktoni: <strong>kontakt@autoswipe.al</strong></div>
+    </div>
+    <button class="btn btn-p" onclick="applyApp('dealer')" id="m-send-app">Dërgo aplikimin</button>
+  </div>
+</div>
+
+<!-- RENTAL REG -->
+<div class="modal-bg" id="rental-m">
+  <div class="modal">
+    <button class="mc" onclick="closeM('rental-m')">✕</button>
+    <div class="mt" id="m-rental-title">Regjistrohu si Rental</div>
+    <div class="al al-w" id="m-rental-info">Pas pagesës cash, administratori konfirmon dhe aktivizon llogarinë brenda 24 orësh.</div>
+    <div class="fg"><label class="fl" id="m-company-lbl">Emri i kompanisë</label><input class="fi" id="r-nm"></div>
+    <div class="fg"><label class="fl" id="m-email-r-lbl">Email</label><input class="fi" id="r-em" type="email"></div>
+    <div class="fg"><label class="fl" id="m-phone-r-lbl">Telefoni</label><input class="fi" id="r-ph" type="tel"></div>
+    <div class="al al-i" style="text-align:center">
+      <div style="font-weight:700;margin-bottom:2px" id="m-rental-cost">€20 / muaj — Pagesë cash</div>
+      <div style="font-size:12px" id="m-rental-contact">Kontaktoni: <strong>kontakt@autoswipe.al</strong></div>
+    </div>
+    <button class="btn btn-p" onclick="applyApp('rental')" id="m-send-app-r">Dërgo aplikimin</button>
+  </div>
+</div>
+
+<!-- PRIVACY -->
+<div class="modal-bg" id="priv-m">
+  <div class="modal">
+    <button class="mc" onclick="closeM('priv-m')">✕</button>
+    <div class="mt" id="m-priv-title">Politika e Privatësisë</div>
+    <div class="policy">
+      <h3>1. Të dhënat</h3><p>AutoSwipe mbledh emrin e përdoruesit dhe numrin e telefonit (opsional). Nuk kërkojmë email për përdoruesit normalë.</p>
+      <h3>2. Përdorimi</h3><p>Të dhënat përdoren vetëm për shfaqjen e listimeve dhe lehtësimin e kontaktit mes palëve.</p>
+      <h3>3. Cookies</h3><p>Cookies teknike për preferencat. Nuk ka cookies reklamuese.</p>
+      <h3>4. Palë të treta</h3><p>Nuk shesim të dhënat tuaja me asnjë palë të tretë.</p>
+      <h3>5. Siguria</h3><p>Enkriptim SSL/TLS. Të gjitha të dhënat mbrohen me standardet më të larta.</p>
+      <h3>6. Kontakti</h3><p><strong>kontakt@autoswipe.al</strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- TERMS -->
+<div class="modal-bg" id="terms-m">
+  <div class="modal">
+    <button class="mc" onclick="closeM('terms-m')">✕</button>
+    <div class="mt" id="m-terms-title">Kushtet e Shërbimit</div>
+    <div class="policy">
+      <h3>1. Postimet</h3><p>Maksimum 1 postim për përdorues normal. Dealers (€30/muaj) pa limit, vetëm pas aktivizimit nga admini.</p>
+      <h3>2. Dealership / Rental</h3><p>Dealers €30/muaj · Rentals €20/muaj. Pagesë cash. Aktivizohet pas konfirmimit manual nga admini.</p>
+      <h3>3. Boost</h3><p>€10/javë ose €20/muaj. Pagesë cash. Aktivizohet vetëm pas konfirmimit nga admini.</p>
+      <h3>4. Anti-Mashtrimi</h3><p>Përdoruesit normalë mund të postojnë vetëm 1 makinë për të parandaluar mashtrimet. Çdo pagesë konfirmohet manualisht nga admini.</p>
+      <h3>5. Kontakti</h3><p><strong>kontakt@autoswipe.al</strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="modal-bg" id="detail-m">
+  <div class="modal" id="detail-c"></div>
+</div>
+
+<!-- ══ JS ══ -->
+<script>
+const ADMIN_EMAIL = 'eto.designs17@gmail.com';
+const ADMIN_PASS  = 'AutoSwipe@2024!';
+
+/* ── SUPABASE CLIENT ── */
+const SUPABASE_URL = 'https://offfkhvlgfkzvesmlvbn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Ywb4Jusfhl9slehkI-w6NA_en48gDtN';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── TRANSLATIONS ── */
+const TX = {
+  sq:{
+    /* page titles */
+    feed:'Zbulo', post:'Posto', saved:'Të ruajtura', messages:'Mesazhe',
+    dealers:'Kompani', rentals:'Me Qira', account:'Llogaria',
+    /* sidebar tooltips */
+    tip_feed:'Zbulo', tip_saved:'Të ruajtura', tip_post:'Posto',
+    tip_messages:'Mesazhe', tip_dealers:'Kompani', tip_rentals:'Me Qira', tip_account:'Llogaria',
+    /* pill filters */
+    pill_all:'Të gjitha', pill_dealer:'Dealership', pill_rental:'Rentals', pill_private:'Private',
+    /* top bar */
+    filtra:'Filtra',
+    /* cookie */
+    ck_text:'Ne përdorim cookies për preferencat tuaja.',
+    ck_privacy:'Politika e Privatësisë',
+    ck_decline:'Refuzo', ck_accept:'Prano',
+    /* username modal */
+    welcome_title:'Mirë se vini',
+    welcome_sub:'Vendosni emrin tuaj për të filluar',
+    username_lbl:'Emri i përdoruesit',
+    phone_opt:'Telefoni (opsional)',
+    start_btn:'Fillo eksplorimin',
+    /* filter modal */
+    filter_title:'Filtro kërkimin',
+    min_price:'Çmimi min (€)', max_price:'Çmimi max (€)',
+    yr_from:'Viti nga', yr_to:'Viti deri',
+    make_lbl:'Marka', all_opt:'Të gjitha',
+    fuel_lbl:'Karburanti', fuel_all:'Të gjitha',
+    petrol:'Benzinë', hybrid:'Hibrid', electric:'Elektrik',
+    city_lbl:'Qyteti', city_all:'Të gjitha',
+    km_lbl:'Km maksimum',
+    apply_btn:'Apliko filtrat',
+    /* dealer modal */
+    dealer_title:'Regjistrohu si Dealer',
+    dealer_info:'Pas pagesës cash, administratori konfirmon dhe aktivizon llogarinë brenda 24 orësh.',
+    dealer_name_lbl:'Emri i dealership-it',
+    email_lbl:'Email', phone_lbl:'Telefoni', city_d_lbl:'Qyteti',
+    dealer_cost:'€30 / muaj — Pagesë cash',
+    contact_info:'Kontaktoni: kontakt@autoswipe.al',
+    send_app:'Dërgo aplikimin',
+    /* rental modal */
+    rental_title:'Regjistrohu si Rental',
+    rental_info:'Pas pagesës cash, administratori konfirmon dhe aktivizon llogarinë brenda 24 orësh.',
+    company_lbl:'Emri i kompanisë',
+    rental_cost:'€20 / muaj — Pagesë cash',
+    /* policy */
+    priv_title:'Politika e Privatësisë',
+    terms_title:'Kushtet e Shërbimit',
+    /* feed */
+    no_more_h:'Nuk ka më makina',
+    no_more_p:'Të gjitha të shfletuara. Kthehu më vonë!',
+    refresh:'Rifresko',
+    /* cat labels */
+    cat_dealer:'Dealer', cat_rental:'Rental', cat_private:'Privat',
+    boosted:'Boosted',
+    /* card actions */
+    contact:'Kontakto', msg_btn:'Mesazh',
+    /* saved */
+    no_saved_h:'Asnjë makinë e ruajtur',
+    no_saved_p:'Shtypni ruaj në çdo listim',
+    /* messages */
+    msg_empty_h:'Asnjë mesazh',
+    msg_empty_p:'Shikoni listimet dhe kontaktoni shitësin.',
+    browse_cars:'Zbulo makinat',
+    your_msgs:'Mesazhet tuaja',
+    start_conv:'Filloni bisedën...',
+    write_msg:'Shkruani mesazhin...',
+    /* post */
+    login_first_h:'Hyni fillimisht',
+    login_first_p:'Vendosni emrin tuaj',
+    start:'Fillo',
+    limit_title:'Limit i arritur',
+    limit_text:'Mund të postoni vetëm 1 makinë si përdorues normal. Regjistrohuni si Dealer për postime të pakufizuara.',
+    become_dealer:'Bëhu Dealer — €30/muaj',
+    make:'Marka', select:'— Zgjidh —', model:'Modeli', year:'Viti',
+    price_eur:'Çmimi (€)', km:'Km', fuel:'Karburanti',
+    benzine:'Benzinë', diesel:'Diesel', hibrid:'Hibrid', elektrik:'Elektrik', gaz:'Gaz',
+    gearbox:'Marsha', manual:'Manuale', auto:'Automatike',
+    type:'Lloji', other:'Tjetër',
+    city:'Qyteti',
+    phone:'Telefoni',
+    description:'Përshkrimi',
+    photos:'Fotot (max 10)',
+    upload_hint:'Kliko për të ngarkuar fotot — deri 10 foto',
+    boost_lbl:'Boost listimin',
+    boost_sub:'Shfaq listimin tënd i pari — pagesë cash, konfirmohet nga admini',
+    no_boost:'Pa boost', one_week:'1 javë', one_month:'1 muaj',
+    post_btn:'Posto makinën',
+    post_ok:'Makina u postua me sukses!',
+    post_ok_boost:'Makina u postua! Boosti aktivizohet pasi admini konfirmon pagesën.',
+    fill_fields:'Plotësoni të gjitha fushat!',
+    /* dealers */
+    cars_lbl:'makina', since_lbl:'që nga',
+    contact_btn:'Kontakto',
+    reg_dealer:'Regjistrohu si Dealer — €30/muaj',
+    /* rentals */
+    from_lbl:'Nga', per_day:'ditë',
+    book_btn:'Rezervo',
+    reg_rental:'Regjistrohu si Rental — €20/muaj',
+    /* account */
+    login_h:'Hyni në llogari', login_p:'Vendosni emrin tuaj',
+    posts_lbl:'Postime', saved_lbl:'Ruajtura', apps_lbl:'Aplikime',
+    pending_notice:'Aplikim në pritje të konfirmimit',
+    admin_panel:'Paneli i adminit', pending_lbl:'në pritje',
+    your_posts:'Postimet tuaja', posts_count:'postime',
+    saved_cars:'Të ruajtura', saved_count:'makina',
+    become_dealer_mi:'Bëhu Dealer', dealer_sub:'€30/muaj · konfirmohet nga admini',
+    become_rental_mi:'Bëhu Rental', rental_sub:'€20/muaj · konfirmohet nga admini',
+    privacy_mi:'Politika e Privatësisë',
+    terms_mi:'Kushtet e Shërbimit',
+    logout:'Dil',
+    /* my posts */
+    my_posts_title:'Postimet tuaja', back:'Kthehu',
+    no_posts_h:'Asnjë postim', no_posts_p:'Postoni makinën tani',
+    boost_active:'Boost aktiv', boost_pending:'Boost në pritje',
+    delete:'Fshi',
+    /* admin */
+    admin_title:'Paneli i adminit',
+    tab_pending:'Në pritje', tab_listings:'Listimet', tab_approved:'Aprovuar', tab_rejected:'Refuzuar',
+    no_pending:'Asnjë aplikim në pritje',
+    type_dealer:'Dealer', type_rental:'Rental', type_boost:'Boost',
+    cash_warning:'⚠ Aprovoni vetëm pasi të keni marrë pagesën cash.',
+    approve:'✓ Aprovo', reject:'✕ Refuzo',
+    del_listing:'Fshi listimin?',
+    no_approved:'Asnjë aprovim', no_rejected:'Asnjë refuzim',
+    all_posts_dash:'Të gjitha postimet',
+    /* misc */
+    verified:'Verified', pending_st:'Pritje', approved_st:'Aprovuar', rejected_st:'Refuzuar',
+  },
+  en:{
+    feed:'Discover', post:'Post', saved:'Saved', messages:'Messages',
+    dealers:'Companies', rentals:'Rentals', account:'Account',
+    tip_feed:'Discover', tip_saved:'Saved', tip_post:'Post',
+    tip_messages:'Messages', tip_dealers:'Companies', tip_rentals:'Rentals', tip_account:'Account',
+    pill_all:'All', pill_dealer:'Dealership', pill_rental:'Rentals', pill_private:'Private',
+    filtra:'Filters',
+    ck_text:'We use cookies for your preferences.',
+    ck_privacy:'Privacy Policy',
+    ck_decline:'Decline', ck_accept:'Accept',
+    welcome_title:'Welcome',
+    welcome_sub:'Enter your username to start',
+    username_lbl:'Username',
+    phone_opt:'Phone (optional)',
+    start_btn:'Start exploring',
+    filter_title:'Filter search',
+    min_price:'Min price (€)', max_price:'Max price (€)',
+    yr_from:'Year from', yr_to:'Year to',
+    make_lbl:'Make', all_opt:'All',
+    fuel_lbl:'Fuel', fuel_all:'All',
+    petrol:'Petrol', hybrid:'Hybrid', electric:'Electric',
+    city_lbl:'City', city_all:'All',
+    km_lbl:'Max km',
+    apply_btn:'Apply filters',
+    dealer_title:'Register as Dealer',
+    dealer_info:'After cash payment, admin confirms and activates your account within 24 hours.',
+    dealer_name_lbl:'Dealership name',
+    email_lbl:'Email', phone_lbl:'Phone', city_d_lbl:'City',
+    dealer_cost:'€30 / month — Cash payment',
+    contact_info:'Contact: kontakt@autoswipe.al',
+    send_app:'Send application',
+    rental_title:'Register as Rental',
+    rental_info:'After cash payment, admin confirms and activates your account within 24 hours.',
+    company_lbl:'Company name',
+    rental_cost:'€20 / month — Cash payment',
+    priv_title:'Privacy Policy',
+    terms_title:'Terms of Service',
+    no_more_h:'No more cars',
+    no_more_p:'All browsed. Check back later!',
+    refresh:'Refresh',
+    cat_dealer:'Dealer', cat_rental:'Rental', cat_private:'Private',
+    boosted:'Boosted',
+    contact:'Contact', msg_btn:'Message',
+    no_saved_h:'No saved cars',
+    no_saved_p:'Press save on any listing',
+    msg_empty_h:'No messages',
+    msg_empty_p:'Browse listings and contact sellers directly.',
+    browse_cars:'Browse cars',
+    your_msgs:'Your messages',
+    start_conv:'Start the conversation...',
+    write_msg:'Write a message...',
+    login_first_h:'Login first',
+    login_first_p:'Set your username',
+    start:'Start',
+    limit_title:'Limit reached',
+    limit_text:'You can only post 1 car as a normal user. Register as a Dealer for unlimited posts.',
+    become_dealer:'Become Dealer — €30/mo',
+    make:'Make', select:'— Select —', model:'Model', year:'Year',
+    price_eur:'Price (€)', km:'Km', fuel:'Fuel',
+    benzine:'Petrol', diesel:'Diesel', hibrid:'Hybrid', elektrik:'Electric', gaz:'Gas',
+    gearbox:'Gearbox', manual:'Manual', auto:'Automatic',
+    type:'Type', other:'Other',
+    city:'City',
+    phone:'Phone',
+    description:'Description',
+    photos:'Photos (max 10)',
+    upload_hint:'Click to upload photos — up to 10',
+    boost_lbl:'Boost listing',
+    boost_sub:'Show your listing first — cash payment, confirmed by admin',
+    no_boost:'No boost', one_week:'1 week', one_month:'1 month',
+    post_btn:'Post car',
+    post_ok:'Car posted successfully!',
+    post_ok_boost:'Car posted! Boost activates after admin confirms your payment.',
+    fill_fields:'Fill all required fields!',
+    cars_lbl:'cars', since_lbl:'since',
+    contact_btn:'Contact',
+    reg_dealer:'Register as Dealer — €30/mo',
+    from_lbl:'From', per_day:'day',
+    book_btn:'Book',
+    reg_rental:'Register as Rental — €20/mo',
+    login_h:'Login', login_p:'Enter your username',
+    posts_lbl:'Posts', saved_lbl:'Saved', apps_lbl:'Applications',
+    pending_notice:'Application pending confirmation',
+    admin_panel:'Admin Panel', pending_lbl:'pending',
+    your_posts:'Your posts', posts_count:'posts',
+    saved_cars:'Saved cars', saved_count:'cars',
+    become_dealer_mi:'Become Dealer', dealer_sub:'€30/mo · confirmed by admin',
+    become_rental_mi:'Become Rental', rental_sub:'€20/mo · confirmed by admin',
+    privacy_mi:'Privacy Policy',
+    terms_mi:'Terms of Service',
+    logout:'Logout',
+    my_posts_title:'Your posts', back:'Back',
+    no_posts_h:'No posts', no_posts_p:'Post your car now',
+    boost_active:'Boost active', boost_pending:'Boost pending',
+    delete:'Delete',
+    admin_title:'Admin Panel',
+    tab_pending:'Pending', tab_listings:'Listings', tab_approved:'Approved', tab_rejected:'Rejected',
+    no_pending:'No pending applications',
+    type_dealer:'Dealer', type_rental:'Rental', type_boost:'Boost',
+    cash_warning:'⚠ Approve only after you have received the cash payment.',
+    approve:'✓ Approve', reject:'✕ Reject',
+    del_listing:'Delete this listing?',
+    no_approved:'None yet', no_rejected:'None',
+    all_posts_dash:'All posts',
+    verified:'Verified', pending_st:'Pending', approved_st:'Approved', rejected_st:'Rejected',
+  }
+};
+function t(k) { return TX[S.lang][k] || k; }
+
+/* ── STATE ── */
+let S = {
+  lang:'sq', user:null, isAdmin:false,
+  saved:[], posts:[], apps:[], dealers:[], rentals:[],
+  filter:'all', cardIdx:0, boost:'none', filters:{}, page:'feed',
+  messages:[],
+  uploadedImgs:[]
+};
+
+/* ── SAMPLE DATA (kept empty; all data now comes from Supabase) ── */
+const CARS = [];
+const DEALERS_SEED = [];
+const RENTALS_SEED = [];
+
+let galImgs=[], galIdx=0;
+let slideState={};
+
+/* ── PERSONAL (LOCAL) PREFS — lang, logged-in username, admin flag, current filter ── */
+function loadLocalPrefs() {
+  try {
+    const d = localStorage.getItem('asw_prefs');
+    if (d) {
+      const p = JSON.parse(d);
+      S.lang    = p.lang    || 'sq';
+      S.user    = p.user    || null;
+      S.isAdmin = p.isAdmin || false;
+      S.filter  = p.filter  || 'all';
+    }
+  } catch(e) {}
+}
+function saveLocalPrefs() {
+  localStorage.setItem('asw_prefs', JSON.stringify({
+    lang: S.lang, user: S.user, isAdmin: S.isAdmin, filter: S.filter
+  }));
+}
+
+/* ── SUPABASE DATA HELPERS ── */
+
+// Convert a DB car row -> the shape the UI expects
+function mapCarRow(row) {
+  return {
+    id: row.id, brand: row.brand, model: row.model, year: row.year,
+    price: row.price, km: row.km, fuel: row.fuel, gear: row.gear,
+    type: row.type, city: row.city, seller: row.seller, phone: row.phone,
+    desc: row.description || '', imgs: row.imgs || [],
+    cat: row.cat, owner: row.owner,
+    boosted: row.boosted, boostExpiry: row.boost_expiry ? new Date(row.boost_expiry).getTime() : null,
+    boostPendingApproval: row.boost_pending, boostType: row.boost_type,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+  };
+}
+
+async function fetchAllData() {
+  const [carsRes, dealersRes, rentalsRes, appsRes] = await Promise.all([
+    sb.from('cars').select('*').order('created_at', { ascending:false }),
+    sb.from('dealers').select('*').order('created_at', { ascending:false }),
+    sb.from('rentals').select('*').order('created_at', { ascending:false }),
+    sb.from('applications').select('*').order('created_at', { ascending:false }),
+  ]);
+  S.posts = (carsRes.data || []).map(mapCarRow);
+  S.dealers = (dealersRes.data || []).map(r => ({
+    id:r.id, name:r.name, city:r.city, logo:r.logo, cars:r.cars_count,
+    since:r.since, phone:r.phone, verified:r.verified, active:r.active
+  }));
+  S.rentals = (rentalsRes.data || []).map(r => ({
+    id:r.id, name:r.name, city:r.city, fleet:r.fleet||[], priceFrom:r.price_from, active:r.active
+  }));
+  S.apps = (appsRes.data || []).map(r => ({
+    id:r.id, type:r.type, name:r.name, email:r.email, phone:r.phone, city:r.city,
+    applicant:r.applicant, carId:r.car_id, boostType:r.boost_type, amount:r.amount,
+    desc:r.description, status:r.status
+  }));
+}
+
+async function fetchSavedForUser() {
+  if (!S.user) { S.saved = []; return; }
+  const { data } = await sb.from('saved_cars').select('car_id').eq('username', S.user.username);
+  const ids = (data||[]).map(r=>r.car_id);
+  if (!ids.length) { S.saved = []; return; }
+  const { data: cars } = await sb.from('cars').select('*').in('id', ids);
+  S.saved = (cars||[]).map(mapCarRow);
+}
+
+async function fetchMessagesForUser() {
+  if (!S.user) { S.messages = []; return; }
+  const { data } = await sb.from('messages').select('*').eq('username', S.user.username).order('created_at', { ascending:true });
+  const grouped = {};
+  (data||[]).forEach(row => {
+    if (!grouped[row.contact_name]) grouped[row.contact_name] = { name: row.contact_name, msgs: [] };
+    const d = new Date(row.created_at);
+    const time = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    grouped[row.contact_name].msgs.push({ text: row.text, me: row.is_me, time, read: true });
+  });
+  S.messages = Object.values(grouped);
+}
+
+/* ── INIT ── */
+window.onload = async () => {
+  loadLocalPrefs();
+  S.cardIdx = 0;
+  S.uploadedImgs = [];
+  if (!S.user) showM('user-m');
+  await fetchAllData();
+  await fetchSavedForUser();
+  await fetchMessagesForUser();
+  goPage('feed');
+  applyLang();
+  if (localStorage.getItem('ck')) document.getElementById('ck').style.display='none';
+};
+
+// Kept for compatibility with existing call sites; now just persists local prefs
+function save() { saveLocalPrefs(); }
+function dismissCk(a) { localStorage.setItem('ck',a?'1':'0'); document.getElementById('ck').style.display='none'; }
+
+/* ── LANG ── */
+function setLang(l) {
+  S.lang = l; save();
+  ['sq','en'].forEach(x => document.getElementById('l'+x).classList.toggle('active',x===l));
+  document.documentElement.lang = l;
+  applyLang();
+  goPage(S.page);
+}
+
+function applyLang() {
+  const l = S.lang;
+  // sidebar tooltips
+  const tips = ['feed','saved','post','messages','dealers','rentals','account'];
+  tips.forEach(k => { const el=document.getElementById('tip-'+k); if(el) el.textContent=t('tip_'+k); });
+  // pill labels
+  ['all','dealer','rental','private'].forEach(k => { const el=document.getElementById('pill-'+k); if(el) el.textContent=t('pill_'+k); });
+  // filtra button
+  const fb=document.getElementById('filtra-btn'); if(fb) fb.textContent=t('filtra');
+  // lang pills
+  ['sq','en'].forEach(x=>{document.getElementById('l'+x).classList.toggle('active',x===S.lang);});
+  // cookie
+  const ckp=document.getElementById('ck-text'); if(ckp) ckp.innerHTML=`${t('ck_text')} <a onclick="showM('priv-m')">${t('ck_privacy')}</a>`;
+  const ckd=document.getElementById('ck-decline'); if(ckd) ckd.textContent=t('ck_decline');
+  const cka=document.getElementById('ck-accept'); if(cka) cka.textContent=t('ck_accept');
+  // username modal
+  const wt=document.getElementById('m-welcome-title'); if(wt) wt.textContent=t('welcome_title');
+  const ws=document.getElementById('m-welcome-sub'); if(ws) ws.textContent=t('welcome_sub');
+  const ul=document.getElementById('m-username-lbl'); if(ul) ul.textContent=t('username_lbl');
+  const pl=document.getElementById('m-phone-lbl'); if(pl) pl.textContent=t('phone_opt');
+  const sbtn=document.getElementById('m-start-btn'); if(sbtn) sbtn.textContent=t('start_btn');
+  // filter modal
+  const ft=document.getElementById('m-filter-title'); if(ft) ft.textContent=t('filter_title');
+  [['m-min-price','min_price'],['m-max-price','max_price'],['m-yr-from','yr_from'],['m-yr-to','yr_to'],
+   ['m-make-lbl','make_lbl'],['m-fuel-lbl','fuel_lbl'],['m-city-lbl','city_lbl'],['m-km-lbl','km_lbl'],['m-apply-btn','apply_btn']
+  ].forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.textContent=t(k); });
+  [['m-all-opt','all_opt'],['m-fuel-all','fuel_all'],['m-petrol','petrol'],['m-hybrid','hybrid'],
+   ['m-electric','electric'],['m-city-all','city_all']
+  ].forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.textContent=t(k); });
+  // dealer modal
+  [['m-dealer-title','dealer_title'],['m-dealer-info','dealer_info'],['m-dealer-name-lbl','dealer_name_lbl'],
+   ['m-email-lbl','email_lbl'],['m-phone-d-lbl','phone_lbl'],['m-city-d-lbl','city_d_lbl'],
+   ['m-dealer-cost','dealer_cost'],['m-send-app','send_app']
+  ].forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.textContent=t(k); });
+  // rental modal
+  [['m-rental-title','rental_title'],['m-rental-info','rental_info'],['m-company-lbl','company_lbl'],
+   ['m-email-r-lbl','email_lbl'],['m-phone-r-lbl','phone_lbl'],['m-rental-cost','rental_cost'],['m-send-app-r','send_app']
+  ].forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.textContent=t(k); });
+  // policy/terms titles
+  const prt=document.getElementById('m-priv-title'); if(prt) prt.textContent=t('priv_title');
+  const tmt=document.getElementById('m-terms-title'); if(tmt) tmt.textContent=t('terms_title');
+}
+
+/* ── MODALS ── */
+function showM(id) { document.getElementById(id).classList.add('open'); }
+function closeM(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => {
+  if (e.target===m && m.id!=='user-m') m.classList.remove('open');
+}));
+
+/* ── GALLERY ── */
+function openGallery(imgs, idx) {
+  galImgs=imgs; galIdx=idx;
+  document.getElementById('gal-img').src=imgs[idx];
+  document.getElementById('gal-ctr').textContent=`${idx+1} / ${imgs.length}`;
+  document.getElementById('gallery-modal').classList.add('open');
+}
+function closeGallery() { document.getElementById('gallery-modal').classList.remove('open'); }
+function galMove(dir) {
+  galIdx=(galIdx+dir+galImgs.length)%galImgs.length;
+  document.getElementById('gal-img').src=galImgs[galIdx];
+  document.getElementById('gal-ctr').textContent=`${galIdx+1} / ${galImgs.length}`;
+}
+document.getElementById('gallery-modal').addEventListener('click', e => { if(e.target===document.getElementById('gallery-modal'))closeGallery(); });
+
+/* ── AUTH ── */
+async function saveUser() {
+  const u = document.getElementById('u-nm').value.trim();
+  if (!u) { alert(t('fill_fields')); return; }
+  S.user = { username:u, phone:document.getElementById('u-ph').value.trim(), role:'user' };
+  save(); closeM('user-m');
+  await fetchSavedForUser();
+  await fetchMessagesForUser();
+  goPage(S.page);
+}
+function logout() { S.user=null; S.isAdmin=false; S.saved=[]; S.messages=[]; save(); goPage('account'); }
+
+/* ── ROUTING ── */
+function goPage(pg) {
+  S.page = pg;
+  document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
+  const nb=document.getElementById('ni-'+pg); if(nb) nb.classList.add('active');
+  document.querySelectorAll('.bt-icon').forEach(b=>b.classList.remove('active'));
+  const bt=document.getElementById('bt-'+pg); if(bt) bt.classList.add('active');
+  document.getElementById('pg-title').textContent = t(pg);
+  const isFeed = pg==='feed';
+  document.getElementById('pill-row').style.display   = isFeed?'flex':'none';
+  document.getElementById('filtra-btn').style.display = isFeed?'block':'none';
+  const c=document.getElementById('content'); c.scrollTop=0;
+  if      (pg==='feed')     renderFeed(c);
+  else if (pg==='saved')    renderSaved(c);
+  else if (pg==='post')     renderPost(c);
+  else if (pg==='messages') renderMessages(c);
+  else if (pg==='dealers')  renderDealers(c);
+  else if (pg==='rentals')  renderRentals(c);
+  else if (pg==='account')  renderAccount(c);
+}
+
+/* ── HELPERS ── */
+function isBoostActive(car) { return car.boosted && car.boostExpiry && Date.now()<car.boostExpiry; }
+function isUserDealer()     { return S.isAdmin || (S.user && (S.user.role==='dealer'||S.user.role==='rental')); }
+function isSaved(id)        { return !!S.saved.find(c=>c.id===id); }
+function catLabel(cat) {
+  return {dealer:t('cat_dealer'), rental:t('cat_rental'), private:t('cat_private')}[cat] || cat;
+}
+
+function allCars() {
+  return [...CARS,...S.posts].sort((a,b)=>(isBoostActive(b)?1:0)-(isBoostActive(a)?1:0));
+}
+function filtCars() {
+  let cars=allCars();
+  if (S.filter!=='all') cars=cars.filter(c=>c.cat===S.filter);
+  const f=S.filters;
+  if(f.mn) cars=cars.filter(c=>c.price>=f.mn);
+  if(f.mx) cars=cars.filter(c=>c.price<=f.mx);
+  if(f.yf) cars=cars.filter(c=>c.year>=f.yf);
+  if(f.yt) cars=cars.filter(c=>c.year<=f.yt);
+  if(f.br) cars=cars.filter(c=>c.brand===f.br);
+  if(f.fl) cars=cars.filter(c=>c.fuel===f.fl);
+  if(f.ct) cars=cars.filter(c=>c.city===f.ct);
+  if(f.km) cars=cars.filter(c=>c.km<=f.km);
+  return cars;
+}
+
+/* ── FEED ── */
+function renderFeed(c) {
+  c.innerHTML=`<div class="feed-inner"><div class="card-stack" id="cstack"></div><div class="card-ctr" id="cctr"></div></div>`;
+  buildStack();
+}
+
+function buildStack() {
+  const stack=document.getElementById('cstack');
+  const ctr=document.getElementById('cctr');
+  if(!stack) return;
+  const cars=filtCars(), rem=cars.slice(S.cardIdx);
+  stack.innerHTML='';
+  if(!rem.length){
+    stack.innerHTML=`<div class="no-cards">
+      <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <h3>${t('no_more_h')}</h3><p>${t('no_more_p')}</p>
+      <button class="nc-btn" onclick="S.cardIdx=0;save();buildStack()">${t('refresh')}</button>
+    </div>`;
+    if(ctr) ctr.textContent=''; return;
+  }
+  rem.slice(0,3).reverse().forEach((car,i,a)=>{
+    const isTop=i===a.length-1;
+    stack.appendChild(mkCard(car, isTop?'ctop':(i===a.length-2?'cz2':'cz1'), isTop));
+  });
+  if(ctr) ctr.textContent=`${S.cardIdx+1} / ${cars.length}`;
+  const top=stack.querySelector('.ctop'); if(top) initDrag(top);
+}
+
+function mkCard(car, zc, interactive) {
+  const d=document.createElement('div');
+  d.className=`swipe-card ${zc}`;
+  const imgs=car.imgs&&car.imgs.length?car.imgs:[];
+  const hasImgs=imgs.length>0;
+  const catCls=car.cat==='dealer'?'dealer-tag':car.cat==='rental'?'rental-tag':'user-tag';
+  const saved=isSaved(car.id);
+
+  d.innerHTML=`
+    <div class="card-img" id="cimg-${car.id}">
+      ${hasImgs
+        ?`<img class="card-img-slide" src="${imgs[0]}" id="slide-${car.id}" onclick="openGallery(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)" alt="">`
+        :`<div class="card-img-ph"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>`
+      }
+      <div class="card-fade"></div>
+      ${hasImgs&&imgs.length>1?`
+        <button class="g-arr left" onclick="slideCard(event,'${car.id}',${JSON.stringify(imgs).replace(/"/g,'&quot;')},-1)">‹</button>
+        <button class="g-arr right" onclick="slideCard(event,'${car.id}',${JSON.stringify(imgs).replace(/"/g,'&quot;')},1)">›</button>
+        <div class="gallery-dots" id="dots-${car.id}">${imgs.map((_,i)=>`<div class="gdot${i===0?' active':''}" id="dot-${car.id}-${i}"></div>`).join('')}</div>
+        <div class="img-count-badge">${imgs.length} foto</div>`:''}
+      <div class="like-lbl" id="ll-${car.id}">LIKE</div>
+      <div class="nope-lbl" id="nl-${car.id}">NOPE</div>
+    </div>
+    <div class="card-body">
+      <div class="c-make">${car.brand}</div>
+      <div class="c-title">${car.model} <span style="font-size:13px;font-weight:400;color:var(--t2)">${car.year}</span></div>
+      <div class="c-price">€${car.price.toLocaleString()}</div>
+      <div class="c-tags">
+        <span class="ctag">${car.km.toLocaleString()} km</span>
+        <span class="ctag">${car.fuel}</span>
+        <span class="ctag">${car.gear}</span>
+        <span class="ctag">${car.city}</span>
+        <span class="ctag ${catCls}">${catLabel(car.cat)}</span>
+        ${isBoostActive(car)?`<span class="ctag boost">${t('boosted')}</span>`:''}
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="seller-row">
+        <div class="s-av">${car.seller.charAt(0)}</div>
+        <div><div class="s-name">${car.seller}</div><div class="s-ph">${car.phone}</div></div>
+      </div>
+      <div class="card-acts">
+        <button class="ca nope" onclick="swBtn('left',event)">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button class="ca save${saved?' saved':''}" id="save-btn-${car.id}" onclick="saveFromCard(${car.id},event)">
+          <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+        <button class="ca like" onclick="swBtn('right',event)">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        </button>
+      </div>
+    </div>`;
+
+  if(interactive){
+    d.querySelector('.card-body').style.cursor='pointer';
+    d.querySelector('.card-body').addEventListener('click',()=>openDetail(car));
+    if(!hasImgs) d.querySelector('.card-img').addEventListener('click',()=>openDetail(car));
+  }
+  return d;
+}
+
+function slideCard(e, carId, imgs, dir) {
+  e.stopPropagation();
+  if(!slideState[carId]) slideState[carId]=0;
+  const next=(slideState[carId]+dir+imgs.length)%imgs.length;
+  slideState[carId]=next;
+  const imgEl=document.getElementById('slide-'+carId); if(imgEl) imgEl.src=imgs[next];
+  imgs.forEach((_,i)=>{ const dot=document.getElementById(`dot-${carId}-${i}`); if(dot) dot.classList.toggle('active',i===next); });
+}
+
+function initDrag(card) {
+  let sx=0, dx=0, on=false;
+  const gx=e=>e.touches?e.touches[0].clientX:e.clientX;
+  const gy=e=>e.touches?e.touches[0].clientY:e.clientY;
+  function start(e){if(e.target.closest('.card-acts')||e.target.closest('.g-arr')||e.target.tagName==='IMG')return;sx=gx(e);on=true;document.addEventListener('mousemove',move);document.addEventListener('mouseup',end);document.addEventListener('touchmove',move,{passive:true});document.addEventListener('touchend',end);}
+  function move(e){if(!on)return;dx=gx(e)-sx;const dy=gy(e)-sx*0;card.style.transform=`translate(${dx}px,${dy*.0}px) rotate(${dx*.06}deg)`;const r=Math.min(Math.abs(dx)/90,1);const ll=card.querySelector('[id^="ll-"]');const nl=card.querySelector('[id^="nl-"]');if(dx>0){if(ll)ll.style.opacity=r;if(nl)nl.style.opacity=0;}else if(dx<0){if(nl)nl.style.opacity=r;if(ll)ll.style.opacity=0;}else{if(ll)ll.style.opacity=0;if(nl)nl.style.opacity=0;}}
+  function end(){on=false;document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',end);document.removeEventListener('touchmove',move);document.removeEventListener('touchend',end);if(dx>80)fly('right');else if(dx<-80)fly('left');else{card.classList.add('anim');card.style.transform='';setTimeout(()=>{card.classList.remove('anim');},420);}dx=0;}
+  function fly(dir){card.classList.add('anim');card.style.transform=dir==='right'?'translate(150%,-10px) rotate(22deg)':'translate(-150%,-10px) rotate(-22deg)';card.style.opacity='0';S.cardIdx++;save();setTimeout(buildStack,430);}
+  card.addEventListener('mousedown',start);
+  card.addEventListener('touchstart',start,{passive:true});
+}
+
+function swBtn(dir,e){e&&e.stopPropagation();const card=document.querySelector('.ctop');if(!card)return;card.classList.add('anim');card.style.transform=dir==='right'?'translate(150%,-10px) rotate(22deg)':'translate(-150%,-10px) rotate(-22deg)';card.style.opacity='0';S.cardIdx++;save();setTimeout(buildStack,430);}
+
+async function saveFromCard(id, e) {
+  e&&e.stopPropagation();
+  if (!S.user) { showM('user-m'); return; }
+  const alreadySaved=isSaved(id);
+  const btn=document.getElementById('save-btn-'+id);
+  if (!alreadySaved) {
+    const car=[...CARS,...S.posts].find(c=>c.id===id);
+    if (car) {
+      S.saved.push(car);
+      if (btn) { btn.classList.add('saved'); btn.style.transform='scale(1.2)'; setTimeout(()=>{ btn.style.transform=''; },200); }
+      await sb.from('saved_cars').insert({ username: S.user.username, car_id: id });
+    }
+  }
+}
+
+function fChip(el,type){ document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));el.classList.add('active');S.filter=type;S.cardIdx=0;buildStack(); }
+function applyF(){ S.filters={mn:+document.getElementById('f-mn').value||null,mx:+document.getElementById('f-mx').value||null,yf:+document.getElementById('f-yf').value||null,yt:+document.getElementById('f-yt').value||null,br:document.getElementById('f-br').value||null,fl:document.getElementById('f-fl').value||null,ct:document.getElementById('f-ct').value||null,km:+document.getElementById('f-km').value||null};S.cardIdx=0;save();closeM('filter-m');buildStack(); }
+
+/* ── DETAIL ── */
+function openDetail(car) {
+  const imgs=car.imgs&&car.imgs.length?car.imgs:[];
+  const catCls=car.cat==='dealer'?'dealer-tag':car.cat==='rental'?'rental-tag':'user-tag';
+  document.getElementById('detail-c').innerHTML=`
+    <button class="mc" onclick="closeM('detail-m')">✕</button>
+    ${imgs.length
+      ?`<div style="height:180px;background:var(--bg3);border-radius:10px;overflow:hidden;margin-bottom:13px;position:relative;cursor:pointer" onclick="openGallery(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)">
+          <img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover" alt="">
+          ${imgs.length>1?`<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px">${imgs.length} foto</div>`:''}
+        </div>`
+      :`<div style="height:150px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:13px">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="1"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>`}
+    <div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:.8px;text-transform:uppercase">${car.brand}</div>
+    <div style="font-size:19px;font-weight:700;margin:3px 0 5px">${car.model} ${car.year}</div>
+    <div style="font-size:20px;font-weight:700;color:var(--blue);margin-bottom:10px">€${car.price.toLocaleString()}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+      <span class="ctag">${car.km.toLocaleString()} km</span>
+      <span class="ctag">${car.fuel}</span><span class="ctag">${car.gear}</span>
+      <span class="ctag">${car.type}</span><span class="ctag">${car.city}</span>
+      <span class="ctag ${catCls}">${catLabel(car.cat)}</span>
+      ${isBoostActive(car)?`<span class="ctag boost">${t('boosted')}</span>`:''}
+    </div>
+    <p style="font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:11px">${car.desc}</p>
+    <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:11px;margin-bottom:12px">
+      <div style="font-weight:600;font-size:13px">${car.seller}</div>
+      <div style="font-size:15px;font-weight:700;color:var(--blue);margin-top:4px">${car.phone}</div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <a href="tel:${car.phone}" class="btn btn-p" style="flex:1;text-decoration:none;text-align:center">${t('contact')}</a>
+      <button class="btn btn-g" style="flex:1" onclick="openMsgFromDetail('${car.seller.replace(/'/g,"\\'")}');closeM('detail-m')">${t('msg_btn')}</button>
+      <button class="btn btn-g" style="flex:0 0 auto;padding:9px 12px;background:${isSaved(car.id)?'var(--blue)':'var(--bg3)'}" onclick="saveCar(${car.id})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${isSaved(car.id)?'#fff':'currentColor'}" stroke-width="2.2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+      </button>
+    </div>`;
+  showM('detail-m');
+}
+async function saveCar(id){
+  if (!S.user) { showM('user-m'); return; }
+  if(!isSaved(id)){
+    const car=[...CARS,...S.posts].find(c=>c.id===id);
+    if (car) { S.saved.push(car); await sb.from('saved_cars').insert({ username:S.user.username, car_id:id }); }
+  }
+  closeM('detail-m');
+}
+
+/* ── MESSAGES ── */
+function renderMessages(c) {
+  if(!S.user){ c.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>${t('login_first_h')}</h3><p style="margin-bottom:12px">${t('login_first_p')}</p><button class="btn btn-p" style="width:auto;padding:9px 20px" onclick="showM('user-m')">${t('start')}</button></div>`; return; }
+  if(!S.messages.length){ c.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>${t('msg_empty_h')}</h3><p style="margin-bottom:12px">${t('msg_empty_p')}</p><button class="nc-btn" onclick="goPage('feed')">${t('browse_cars')}</button></div>`; return; }
+  c.innerHTML=`<div class="msgs-wrap"><div class="msgs-hd">${t('your_msgs')}</div><div class="msg-list">${S.messages.map((conv,i)=>{const last=conv.msgs[conv.msgs.length-1]||{};const unread=conv.msgs.some(m=>!m.me&&!m.read);return`<div class="msg-item" onclick="openThread(${i})"><div class="msg-av">${conv.name.charAt(0)}</div><div class="msg-info"><div class="msg-name">${conv.name}</div><div class="msg-preview">${last.text||'...'}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="msg-time">${last.time||''}</div>${unread?'<div class="msg-unread"></div>':''}</div></div>`;}).join('')}</div></div>`;
+}
+function openMsgFromDetail(name) {
+  if(!S.user){showM('user-m');return;}
+  let idx=S.messages.findIndex(c=>c.name===name);
+  if(idx===-1){S.messages.push({name,msgs:[]});save();idx=S.messages.length-1;}
+  goPage('messages');
+  setTimeout(()=>openThread(idx),60);
+}
+function openThread(idx) {
+  const c=document.getElementById('content');
+  const conv=S.messages[idx];
+  conv.msgs.forEach(m=>m.read=true); save();
+  c.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">
+    <div class="thread-hd">
+      <button class="thread-back" onclick="goPage('messages')">‹</button>
+      <div class="msg-av" style="width:34px;height:34px;font-size:13px">${conv.name.charAt(0)}</div>
+      <div class="thread-name">${conv.name}</div>
+    </div>
+    <div class="thread-body" id="thread-body">
+      ${!conv.msgs.length?`<div style="text-align:center;color:var(--t3);font-size:12px;padding:20px">${t('start_conv')}</div>`:''}
+      ${conv.msgs.map(m=>`<div><div class="bubble ${m.me?'me':'them'}">${m.text}<div class="btime">${m.time}</div></div></div>`).join('')}
+    </div>
+    <div class="thread-input">
+      <input id="msg-in" placeholder="${t('write_msg')}" onkeydown="if(event.key==='Enter')sendMsg(${idx})">
+      <button class="send-btn" onclick="sendMsg(${idx})"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>`;
+  const body=document.getElementById('thread-body'); if(body) body.scrollTop=body.scrollHeight;
+}
+async function sendMsg(idx) {
+  const inp=document.getElementById('msg-in'); if(!inp) return;
+  const text=inp.value.trim(); if(!text) return;
+  const now=new Date();
+  const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  S.messages[idx].msgs.push({text,me:true,time,read:true});
+  inp.value=''; openThread(idx);
+  await sb.from('messages').insert({ username:S.user.username, contact_name:S.messages[idx].name, text, is_me:true });
+}
+
+/* ── SAVED ── */
+function renderSaved(c) {
+  if(!S.saved.length){ c.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg><h3>${t('no_saved_h')}</h3><p>${t('no_saved_p')}</p></div>`; return; }
+  const catCls=cat=>cat==='dealer'?'dealer-tag':cat==='rental'?'rental-tag':'user-tag';
+  c.innerHTML=`<div class="view"><div class="grid2">${S.saved.map(car=>`<div class="car-card" onclick="openDetail(${JSON.stringify(car).replace(/"/g,'&quot;')})"><div class="cc-img">${car.imgs&&car.imgs[0]?`<img src="${car.imgs[0]}" alt="">`: `<svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`}</div><div class="cc-body"><div class="cc-make">${car.brand}</div><div class="cc-name">${car.model}</div><div class="cc-price">€${car.price.toLocaleString()}</div><div class="cc-meta">${car.year} · ${car.km.toLocaleString()} km</div><div style="margin-top:4px"><span class="ctag ${catCls(car.cat)}" style="padding:1px 6px;font-size:10px">${catLabel(car.cat)}</span></div></div></div>`).join('')}</div></div>`;
+}
+
+/* ── POST ── */
+function renderPost(c) {
+  if(!S.user){ c.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><h3>${t('login_first_h')}</h3><p style="margin-bottom:12px">${t('login_first_p')}</p><button class="btn btn-p" style="width:auto;padding:9px 20px" onclick="showM('user-m')">${t('start')}</button></div>`; return; }
+  const mine=S.posts.filter(p=>p.owner===S.user.username);
+  const hit=!isUserDealer()&&mine.length>=1;
+  S.uploadedImgs=[];
+  c.innerHTML=`<div class="view">${hit?`
+    <div class="lim-bar"><strong>${t('limit_title')}</strong><br>${t('limit_text')}<div style="margin-top:8px"><button class="btn btn-sm btn-o" onclick="showM('dealer-m')">${t('become_dealer')}</button></div></div>`:`
+    <div class="fg"><label class="fl">${t('make')}</label>
+      <select class="fs" id="p-br"><option value="">${t('select')}</option>
+        <option>BMW</option><option>Mercedes-Benz</option><option>Audi</option><option>Volkswagen</option>
+        <option>Toyota</option><option>Ford</option><option>Opel</option><option>Fiat</option>
+        <option>Peugeot</option><option>Renault</option><option>Hyundai</option><option>Kia</option>
+        <option>${t('other')}</option>
+      </select>
+    </div>
+    <div class="ir">
+      <div class="fg"><label class="fl">${t('model')}</label><input class="fi" id="p-md" placeholder="M3, A4…"></div>
+      <div class="fg"><label class="fl">${t('year')}</label><input class="fi" id="p-yr" type="number" placeholder="2020"></div>
+    </div>
+    <div class="ir">
+      <div class="fg"><label class="fl">${t('price_eur')}</label><input class="fi" id="p-pr" type="number" placeholder="15000"></div>
+      <div class="fg"><label class="fl">${t('km')}</label><input class="fi" id="p-km" type="number" placeholder="80000"></div>
+    </div>
+    <div class="ir">
+      <div class="fg"><label class="fl">${t('fuel')}</label>
+        <select class="fs" id="p-fl"><option value="benzine">${t('benzine')}</option><option value="diesel">${t('diesel')}</option><option value="hybrid">${t('hibrid')}</option><option value="electric">${t('elektrik')}</option><option value="gas">${t('gaz')}</option></select>
+      </div>
+      <div class="fg"><label class="fl">${t('gearbox')}</label>
+        <select class="fs" id="p-gr"><option value="manual">${t('manual')}</option><option value="auto">${t('auto')}</option></select>
+      </div>
+    </div>
+    <div class="ir">
+      <div class="fg"><label class="fl">${t('type')}</label>
+        <select class="fs" id="p-tp"><option value="sedan">Sedan</option><option value="suv">SUV</option><option value="coupe">Coupe</option><option value="hatchback">Hatchback</option><option value="kombi">Kombi</option></select>
+      </div>
+      <div class="fg"><label class="fl">${t('city')}</label>
+        <select class="fs" id="p-ct"><option>Tiranë</option><option>Durrës</option><option>Vlorë</option><option>Shkodër</option><option>Elbasan</option><option>Fier</option><option>${t('other')}</option></select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">${t('phone')}</label><input class="fi" id="p-ph" type="tel" placeholder="+355 6X XXX XXXX"></div>
+    <div class="fg"><label class="fl">${t('description')}</label><textarea class="ft" id="p-ds"></textarea></div>
+    <div class="fg">
+      <label class="fl">${t('photos')}</label>
+      <div class="upload-box" onclick="document.getElementById('p-imgs').click()">
+        <input type="file" id="p-imgs" multiple accept="image/*" onchange="handleImgs(this)">
+        <div class="uic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <p style="font-size:12px;color:var(--t2)">${t('upload_hint')}</p>
+      </div>
+      <div class="img-prev" id="ip"></div>
+    </div>
+    <div class="boost-box">
+      <div class="boost-lbl">${t('boost_lbl')}</div>
+      <div class="boost-sub">${t('boost_sub')}</div>
+      <div class="boost-opts">
+        <div class="bopt sel" id="bo-none" onclick="selB('none')"><div class="bp">€0</div><div class="bl">${t('no_boost')}</div></div>
+        <div class="bopt" id="bo-week" onclick="selB('week')"><div class="bp">€10</div><div class="bl">${t('one_week')}</div></div>
+        <div class="bopt" id="bo-month" onclick="selB('month')"><div class="bp">€20</div><div class="bl">${t('one_month')}</div></div>
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="submitPost()">${t('post_btn')}</button>`}
+  </div>`;
+}
+
+function handleImgs(inp){
+  const files=Array.from(inp.files).slice(0,10);
+  const ip=document.getElementById('ip'); if(!ip) return;
+  ip.innerHTML=''; S.uploadedImgs=[];
+  files.forEach((f,i)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      S.uploadedImgs[i]=e.target.result;
+      const d=document.createElement('div'); d.className='ip-it';
+      d.innerHTML=`<img src="${e.target.result}" alt=""><div class="ip-rm" onclick="removeImg(${i})">✕</div>`;
+      ip.appendChild(d);
+    };
+    r.readAsDataURL(f);
+  });
+}
+function removeImg(i){ S.uploadedImgs[i]=null; const ip=document.getElementById('ip'); if(!ip) return; const its=ip.querySelectorAll('.ip-it'); if(its[i]) its[i].remove(); }
+function selB(x){ S.boost=x; ['none','week','month'].forEach(v=>{const el=document.getElementById('bo-'+v);if(el) el.classList.toggle('sel',v===x);}); }
+
+async function submitPost(){
+  if(!S.user){showM('user-m');return;}
+  const brand=document.getElementById('p-br')?.value,model=document.getElementById('p-md')?.value,year=document.getElementById('p-yr')?.value,price=document.getElementById('p-pr')?.value,km=document.getElementById('p-km')?.value,phone=document.getElementById('p-ph')?.value;
+  if(!brand||!model||!year||!price||!km||!phone){alert(t('fill_fields'));return;}
+  const imgs=(S.uploadedImgs||[]).filter(Boolean);
+  const cat = isUserDealer() ? (S.user.role==='rental'?'rental':'dealer') : 'private';
+
+  const { data: inserted, error } = await sb.from('cars').insert({
+    brand, model, year:+year, price:+price, km:+km,
+    fuel: document.getElementById('p-fl').value,
+    gear: document.getElementById('p-gr').value,
+    type: document.getElementById('p-tp').value,
+    city: document.getElementById('p-ct').value,
+    seller: S.user.username, phone,
+    description: document.getElementById('p-ds').value,
+    imgs, cat, owner: S.user.username,
+    boosted: false, boost_type: S.boost, boost_pending: S.boost!=='none'
+  }).select().single();
+
+  if (error) { alert('Error: '+error.message); return; }
+
+  S.posts.unshift(mapCarRow(inserted));
+
+  if (S.boost!=='none') {
+    await sb.from('applications').insert({
+      type:'boost', name:S.user.username, email:S.user.phone||'—', phone:S.user.phone||'—',
+      applicant:S.user.username, car_id:inserted.id, boost_type:S.boost,
+      amount: S.boost==='week'?'€10':'€20',
+      description: `Boost ${brand} ${model} (${S.boost==='week'?t('one_week'):t('one_month')})`
+    });
+    await fetchAllData();
+  }
+
+  S.cardIdx=0; S.uploadedImgs=[];
+  alert(S.boost!=='none'?t('post_ok_boost'):t('post_ok'));
+  goPage('feed');
+}
+
+/* ── DEALERS ── */
+function renderDealers(c){
+  c.innerHTML=`<div class="view">${S.dealers.filter(d=>d.active).map(d=>`<div class="lcard"><div class="lc-row"><div class="lc-av">${d.logo}</div><div><div class="lc-name">${d.name}</div><div class="lc-sub">${d.city}</div>${d.verified?`<div class="vbadge"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> ${t('verified')}</div>`:''}</div></div><div class="lc-stats"><span class="lc-stat"><strong>${d.cars}</strong> ${t('cars_lbl')}</span><span class="lc-stat">${t('since_lbl')} <strong>${d.since}</strong></span></div><div class="lc-acts"><a href="tel:${d.phone}" class="btn btn-g btn-sm" style="text-decoration:none">${t('contact_btn')}</a></div></div>`).join('')}<div style="margin-top:10px"><button class="btn btn-o" onclick="showM('dealer-m')">${t('reg_dealer')}</button></div></div>`;
+}
+
+/* ── RENTALS ── */
+function renderRentals(c){
+  c.innerHTML=`<div class="view">${S.rentals.filter(r=>r.active).map(r=>`<div class="lcard"><div class="lc-row">
+    <div class="lc-av">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"/>
+        <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+      </svg>
+    </div>
+    <div><div class="lc-name">${r.name}</div><div class="lc-sub">${r.city}</div></div></div>
+    <div class="lc-stats"><span class="lc-stat">${t('from_lbl')} <strong>€${r.priceFrom}/${t('per_day')}</strong></span></div>
+    <div class="tag-row">${(r.fleet||[]).map(x=>`<span class="ctag">${x}</span>`).join('')}</div>
+    <div class="lc-acts"><button class="btn btn-p btn-sm">${t('book_btn')}</button><button class="btn btn-g btn-sm" onclick="openMsgFromDetail('${r.name.replace(/'/g,"\\'")}')">${t('contact_btn')}</button></div>
+  </div>`).join('')}<div style="margin-top:10px"><button class="btn btn-o" onclick="showM('rental-m')">${t('reg_rental')}</button></div></div>`;
+}
+
+/* ── ACCOUNT ── */
+function renderAccount(c){
+  if(!S.user){c.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><h3>${t('login_h')}</h3><p style="margin-bottom:12px">${t('login_p')}</p><button class="btn btn-p" style="width:auto;padding:9px 20px" onclick="showM('user-m')">${t('start')}</button></div>`;return;}
+  const role=S.isAdmin?'admin':S.user.role||'user';
+  const mine=S.posts.filter(p=>p.owner===S.user.username);
+  const myApps=S.apps.filter(a=>a.applicant===S.user.username);
+  c.innerHTML=`
+    <div class="acc-hd">
+      <div class="acc-av">${S.user.username.charAt(0).toUpperCase()}</div>
+      <div class="acc-name">${S.user.username}</div>
+      <span class="rbadge ${{admin:'rb-a',dealer:'rb-d',rental:'rb-r',user:'rb-u'}[role]}">${{admin:'Admin',dealer:'Dealer',rental:'Rental',user:'User'}[role]}</span>
+      ${myApps.some(a=>a.status==='pending')?`<div class="pending-notice">${t('pending_notice')}</div>`:''}
+    </div>
+    <div class="stats-row">
+      <div class="sbox"><div class="sv">${mine.length}</div><div class="sl">${t('posts_lbl')}</div></div>
+      <div class="sbox"><div class="sv">${S.saved.length}</div><div class="sl">${t('saved_lbl')}</div></div>
+      <div class="sbox"><div class="sv">${myApps.length}</div><div class="sl">${t('apps_lbl')}</div></div>
+    </div>
+    <div class="menu-list">
+      ${S.isAdmin?`<div class="mi" onclick="renderAdmin(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('admin_panel')}</div><div class="mi-sub">${S.apps.filter(a=>a.status==='pending').length} ${t('pending_lbl')}</div></div><span class="mi-arr">›</span></div>`:''}
+      <div class="mi" onclick="renderMyPosts(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('your_posts')}</div><div class="mi-sub">${mine.length} ${t('posts_count')}</div></div><span class="mi-arr">›</span></div>
+      <div class="mi" onclick="goPage('saved')"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('saved_cars')}</div><div class="mi-sub">${S.saved.length} ${t('saved_count')}</div></div><span class="mi-arr">›</span></div>
+      ${!S.isAdmin&&role==='user'?`
+      <div class="mi" onclick="showM('dealer-m')"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div><div class="mi-txt"><div class="mi-title">${t('become_dealer_mi')}</div><div class="mi-sub">${t('dealer_sub')}</div></div><span class="mi-arr">›</span></div>
+      <div class="mi" onclick="showM('rental-m')"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div class="mi-txt"><div class="mi-title">${t('become_rental_mi')}</div><div class="mi-sub">${t('rental_sub')}</div></div><span class="mi-arr">›</span></div>`:''}
+      <div class="mi" onclick="showM('priv-m')"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('privacy_mi')}</div></div><span class="mi-arr">›</span></div>
+      <div class="mi" onclick="showM('terms-m')"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="mi-txt"><div class="mi-title">${t('terms_mi')}</div></div><span class="mi-arr">›</span></div>
+      <div class="mi" onclick="logout()" style="margin-top:5px"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="var(--err)"/><polyline points="16 17 21 12 16 7" stroke="var(--err)"/><line x1="21" y1="12" x2="9" y2="12" stroke="var(--err)"/></svg></div><div class="mi-txt"><div class="mi-title" style="color:var(--err)">${t('logout')}</div></div></div>
+    </div><div style="height:20px"></div>`;
+}
+
+/* ── ADMIN ── */
+function renderAdmin(c){
+  const pending=S.apps.filter(a=>a.status==='pending');
+  const approved=S.apps.filter(a=>a.status==='approved');
+  const rejected=S.apps.filter(a=>a.status==='rejected');
+  const allPosts=[...CARS,...S.posts];
+
+  c.innerHTML=`<div class="view" style="max-width:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <button class="btn btn-g btn-sm" onclick="renderAccount(document.getElementById('content'))">← ${t('back')}</button>
+      <span style="font-size:15px;font-weight:700">${t('admin_title')}</span>
+    </div>
+    <div class="atabs">
+      <div class="atab active" onclick="swT('ap',this)">${t('tab_pending')} (${pending.length})</div>
+      <div class="atab" onclick="swT('al',this)">${t('all_posts_dash')} (${allPosts.length})</div>
+      <div class="atab" onclick="swT('aa',this)">${t('tab_approved')} (${approved.length})</div>
+      <div class="atab" onclick="swT('ar',this)">${t('tab_rejected')} (${rejected.length})</div>
+    </div>
+
+    <!-- PENDING APPROVALS -->
+    <div class="asec active" id="ap">
+      ${!pending.length?`<div class="empty"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><h3>${t('no_pending')}</h3></div>`:
+        pending.map(a=>`<div class="pcard">
+          <div class="pct">
+            <div>
+              <div class="pnm">${a.name}</div>
+              <div class="pmt">
+                ${a.type==='dealer'?`${t('type_dealer')} · €30/muaj`:a.type==='rental'?`${t('type_rental')} · €20/muaj`:`${t('type_boost')} (${a.boostType==='week'?t('one_week'):t('one_month')}) · ${a.amount}`}
+                ${a.email&&a.email!=='—'?` · ${a.email}`:''}
+                ${a.desc?`<br><span style="color:var(--t3)">${a.desc}</span>`:''}
+              </div>
+            </div>
+            <span class="sp sp-p">${t('pending_st')}</span>
+          </div>
+          <div class="al al-w" style="font-size:11px;margin-bottom:8px">${t('cash_warning')}</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-p btn-sm" onclick="handleApp(${a.id},'approved')">${t('approve')}</button>
+            <button class="btn btn-d btn-sm" onclick="handleApp(${a.id},'rejected')">${t('reject')}</button>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- ALL POSTS DASHBOARD -->
+    <div class="asec" id="al">
+      ${allPosts.map(car=>{
+        const catCls=car.cat==='dealer'?'dealer-tag':car.cat==='rental'?'rental-tag':'user-tag';
+        return `<div class="admin-post-row">
+          <div class="admin-post-thumb">
+            ${car.imgs&&car.imgs[0]?`<img src="${car.imgs[0]}" alt="">`:`<svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`}
+          </div>
+          <div class="admin-post-info">
+            <div class="admin-post-title">${car.brand} ${car.model} ${car.year}</div>
+            <div class="admin-post-meta">€${car.price.toLocaleString()} · ${car.seller} · <span class="ctag ${catCls}" style="padding:1px 6px;font-size:10px">${catLabel(car.cat)}</span>${isBoostActive(car)?` · <span style="color:var(--warn)">🚀 Boost</span>`:''}</div>
+          </div>
+          <button class="btn btn-d btn-sm" style="flex-shrink:0" onclick="rmList(${car.id})">${t('delete')}</button>
+        </div>`;
+      }).join('')}
+      ${!allPosts.length?`<div class="empty"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/></svg><h3>—</h3></div>`:''}
+    </div>
+
+    <!-- APPROVED -->
+    <div class="asec" id="aa">
+      ${!approved.length?`<div class="empty"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><h3>${t('no_approved')}</h3></div>`:
+        approved.map(a=>`<div class="pcard"><div class="pct"><div><div class="pnm">${a.name}</div><div class="pmt">${a.email||''}</div></div><span class="sp sp-a">${t('approved_st')}</span></div></div>`).join('')}
+    </div>
+
+    <!-- REJECTED -->
+    <div class="asec" id="ar">
+      ${!rejected.length?`<div class="empty"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg><h3>${t('no_rejected')}</h3></div>`:
+        rejected.map(a=>`<div class="pcard"><div class="pct"><div><div class="pnm">${a.name}</div><div class="pmt">${a.email||''}</div></div><span class="sp sp-r">${t('rejected_st')}</span></div></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function swT(id,el){
+  document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.asec').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+async function handleApp(id,status){
+  const a=S.apps.find(x=>x.id===id); if(!a) return;
+  await sb.from('applications').update({ status }).eq('id', id);
+
+  if(status==='approved'){
+    if(a.type==='dealer'){
+      await sb.from('dealers').insert({ name:a.name, city:a.city||'Shqipëri', logo:a.name.charAt(0), cars_count:0, since:new Date().getFullYear().toString(), phone:a.phone||'—', verified:true, active:true });
+    } else if(a.type==='rental'){
+      await sb.from('rentals').insert({ name:a.name, city:'Shqipëri', fleet:[], price_from:0, active:true });
+    } else if(a.type==='boost'){
+      const durationMs = a.boostType==='week' ? 7*864e5 : 30*864e5;
+      const expiry = new Date(Date.now()+durationMs).toISOString();
+      await sb.from('cars').update({ boosted:true, boost_expiry:expiry, boost_pending:false }).eq('id', a.carId);
+    }
+  }
+  await fetchAllData();
+  renderAdmin(document.getElementById('content'));
+}
+
+async function rmList(id){
+  if(!confirm(t('del_listing'))) return;
+  await sb.from('cars').delete().eq('id', id);
+  S.posts=S.posts.filter(p=>p.id!==id);
+  renderAdmin(document.getElementById('content'));
+}
+
+function renderMyPosts(c){
+  const mine=S.posts.filter(p=>p.owner===S.user?.username);
+  const catCls=cat=>cat==='dealer'?'dealer-tag':cat==='rental'?'rental-tag':'user-tag';
+  c.innerHTML=`<div class="view">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <button class="btn btn-g btn-sm" onclick="renderAccount(document.getElementById('content'))">← ${t('back')}</button>
+      <span style="font-size:15px;font-weight:700">${t('my_posts_title')}</span>
+    </div>
+    ${!mine.length?`<div class="empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>${t('no_posts_h')}</h3><p style="margin-bottom:12px">${t('no_posts_p')}</p><button class="btn btn-p" style="width:auto;padding:9px 20px" onclick="goPage('post')">${t('post_btn')}</button></div>`
+    :`<div class="grid2">${mine.map(car=>`<div class="car-card"><div class="cc-img">${car.imgs&&car.imgs[0]?`<img src="${car.imgs[0]}" alt="">`:`<svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`}</div><div class="cc-body"><div class="cc-make">${car.brand}</div><div class="cc-name">${car.model}</div><div class="cc-price">€${car.price.toLocaleString()}</div><div style="margin-top:4px"><span class="ctag ${catCls(car.cat)}" style="padding:1px 6px;font-size:10px">${catLabel(car.cat)}</span></div>${isBoostActive(car)?`<div class="cc-meta" style="color:var(--warn);margin-top:3px">${t('boost_active')}</div>`:''}${car.boostPendingApproval&&!isBoostActive(car)?`<div class="cc-meta" style="margin-top:3px">${t('boost_pending')}</div>`:''}<button class="btn btn-d btn-sm" style="margin-top:5px;width:100%" onclick="delPost(${car.id})">${t('delete')}</button></div></div>`).join('')}</div>`}
+  </div>`;
+}
+async function delPost(id){
+  if(!confirm(t('del_listing')))return;
+  await sb.from('cars').delete().eq('id', id);
+  S.posts=S.posts.filter(p=>p.id!==id);
+  renderMyPosts(document.getElementById('content'));
+}
+
+/* ── APPLY APP ── */
+async function applyApp(type){
+  const nm=type==='dealer'?document.getElementById('d-nm').value:document.getElementById('r-nm').value;
+  const em=type==='dealer'?document.getElementById('d-em').value:document.getElementById('r-em').value;
+  const ph=type==='dealer'?document.getElementById('d-ph').value:document.getElementById('r-ph').value;
+  const ct=type==='dealer'?(document.getElementById('d-ct')?.value||''):'';
+  if(!nm||!em){alert(t('fill_fields'));return;}
+  if(!S.user){showM('user-m');return;}
+  await sb.from('applications').insert({ type, name:nm, email:em, phone:ph, city:ct, applicant:S.user.username });
+  await fetchAllData();
+  closeM(type==='dealer'?'dealer-m':'rental-m');
+  alert(S.lang==='sq'?'Aplikimi u dërgua! Kontaktoni administratorin për pagesën cash. Do aktivizoheni brenda 24 orësh.':'Application sent! Contact the admin for cash payment. You will be activated within 24 hours.');
+}
+
+/* ── ADMIN LOGIN — hidden, accessed only by clicking the logo 5x quickly ── */
+function doAdminLogin(email, pass) {
+  if(email===ADMIN_EMAIL && pass===ADMIN_PASS){
+    S.isAdmin=true;
+    S.user={username:'Admin',role:'admin',email:ADMIN_EMAIL};
+    save(); return true;
+  }
+  return false;
+}
+
+/* Secret admin login: add hidden floating trigger only shown after triple-click on logo */
+let logoClicks=0, logoTimer=null;
+document.querySelector('.sb-logo').addEventListener('click', ()=>{
+  logoClicks++;
+  clearTimeout(logoTimer);
+  logoTimer=setTimeout(()=>{logoClicks=0;},600);
+  if(logoClicks>=5){
+    logoClicks=0;
+    showAdminLogin();
+  }
+});
+
+function showAdminLogin(){
+  // build a simple inline prompt
+  const email=prompt('Admin email:');
+  if(!email) return;
+  const pass=prompt('Password:');
+  if(!pass) return;
+  if(doAdminLogin(email.trim(), pass)){
+    goPage('account');
+  } else {
+    alert(S.lang==='sq'?'Kredenciale të gabuara.':'Wrong credentials.');
+  }
+}
+</script>
+</body>
+</html>
