@@ -20,8 +20,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 /* ── SIDEBAR ── */
 .sidebar{width:88px;flex-shrink:0;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;padding:18px 0;position:relative;z-index:10;}
-.sb-logo{width:44px;height:44px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:28px;flex-shrink:0;cursor:pointer;}
-.sb-logo svg{width:22px;height:22px;stroke:#fff;stroke-width:1.8;fill:none;}
+.sb-logo{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#5b9dff,#2f6df6);display:flex;align-items:center;justify-content:center;margin-bottom:28px;flex-shrink:0;cursor:pointer;box-shadow:0 4px 14px rgba(59,130,246,.35);}
+.sb-logo svg{width:24px;height:24px;stroke:#0c0d15;stroke-width:1.9;fill:none;}
 .nav-items{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;}
 .ni{width:100%;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);transition:color .15s;position:relative;border:none;background:transparent;}
 .ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none;position:relative;z-index:1;}
@@ -330,7 +330,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar">
     <div class="sb-logo" onclick="goPage('feed')">
-      <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 14.5l1-3.8a2 2 0 011.9-1.5h9.4a2 2 0 011.9 1.4l1.2 3.9"/>
+        <path d="M2.8 14.5h18.4a1 1 0 011 1.1l-.3 2a1 1 0 01-1 .9H3.1a1 1 0 01-1-.9l-.3-2a1 1 0 011-1.1z"/>
+        <circle cx="7.5" cy="17.5" r="1.6"/>
+        <circle cx="16.5" cy="17.5" r="1.6"/>
+        <path d="M8 9.5V7.8a1 1 0 011-1h6a1 1 0 011 1V9.5"/>
+      </svg>
     </div>
     <div class="nav-items">
       <button class="ni active" id="ni-feed" onclick="goPage('feed')">
@@ -364,6 +370,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <button class="ni" id="ni-account" onclick="goPage('account')">
         <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span class="tip" id="tip-account">Llogaria</span>
+        <span id="admin-pending-badge" style="display:none;position:absolute;top:6px;right:18px;width:8px;height:8px;border-radius:50%;background:var(--err);border:1.5px solid var(--sidebar);z-index:2;"></span>
       </button>
     </div>
     <div class="sb-bottom">
@@ -855,6 +862,14 @@ async function fetchAllData() {
     applicant:r.applicant, carId:r.car_id, boostType:r.boost_type, amount:r.amount,
     desc:r.description, status:r.status
   }));
+  updateAdminBadge();
+}
+
+function updateAdminBadge() {
+  const badge = document.getElementById('admin-pending-badge');
+  if (!badge) return;
+  const pendingCount = S.apps.filter(a => a.status === 'pending').length;
+  badge.style.display = (S.isAdmin && pendingCount > 0) ? 'block' : 'none';
 }
 
 async function fetchSavedForUser() {
@@ -891,6 +906,17 @@ window.onload = async () => {
   goPage('feed');
   applyLang();
   if (localStorage.getItem('ck')) document.getElementById('ck').style.display='none';
+
+  // If logged in as admin, quietly poll for new pending applications every 30s
+  if (S.isAdmin) {
+    setInterval(async () => {
+      const { data } = await sb.from('applications').select('id,status').eq('status','pending');
+      S.apps = S.apps.filter(a => a.status !== 'pending').concat(
+        (data||[]).map(r => S.apps.find(a=>a.id===r.id) || {id:r.id, status:'pending'})
+      );
+      updateAdminBadge();
+    }, 30000);
+  }
 };
 
 // Kept for compatibility with existing call sites; now just persists local prefs
@@ -1576,7 +1602,9 @@ function doAdminLogin(email, pass) {
   if(email===ADMIN_EMAIL && pass===ADMIN_PASS){
     S.isAdmin=true;
     S.user={username:'Admin',role:'admin',email:ADMIN_EMAIL};
-    save(); return true;
+    save();
+    updateAdminBadge();
+    return true;
   }
   return false;
 }
