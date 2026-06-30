@@ -20,8 +20,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 /* ── SIDEBAR ── */
 .sidebar{width:88px;flex-shrink:0;background:var(--sidebar);display:flex;flex-direction:column;align-items:center;padding:18px 0;position:relative;z-index:10;}
-.sb-logo{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#5b9dff,#2f6df6);display:flex;align-items:center;justify-content:center;margin-bottom:28px;flex-shrink:0;cursor:pointer;box-shadow:0 4px 14px rgba(59,130,246,.35);}
-.sb-logo svg{width:24px;height:24px;stroke:#0c0d15;stroke-width:1.9;fill:none;}
+.sb-logo{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#5b9dff,#2f6df6);display:flex;align-items:center;justify-content:center;margin-bottom:28px;flex-shrink:0;cursor:pointer;box-shadow:0 4px 14px rgba(59,130,246,.35);overflow:hidden;}
 .nav-items{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;}
 .ni{width:100%;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);transition:color .15s;position:relative;border:none;background:transparent;}
 .ni svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.7;fill:none;position:relative;z-index:1;}
@@ -50,6 +49,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .content-scroll{flex:1;overflow-y:auto;position:relative;}
 .content-scroll::-webkit-scrollbar{width:4px;}
 .content-scroll::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px;}
+
+/* ── AD BANNER (sits above bottom toolbar) ── */
+#ad-banner{display:none;flex-shrink:0;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--brd);background:var(--bg3);}
+#ad-banner.show{display:flex;}
+#ad-banner img{width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--bg4);}
+#ad-banner .ad-text{flex:1;min-width:0;}
+#ad-banner .ad-label{font-size:9px;font-weight:700;letter-spacing:.6px;color:var(--t3);text-transform:uppercase;}
+#ad-banner .ad-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#ad-banner a.ad-cta{flex-shrink:0;font-size:11px;font-weight:600;color:var(--blue);text-decoration:none;padding:5px 12px;border-radius:20px;background:var(--bdim);border:1px solid var(--bbrd);}
+#ad-banner a.ad-cta:hover{background:var(--blue);color:#fff;}
 
 /* ── BOTTOM TOOLBAR ── */
 .bottom-toolbar{flex-shrink:0;height:56px;border-top:1px solid var(--brd);display:flex;align-items:center;justify-content:center;gap:28px;}
@@ -330,12 +339,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar">
     <div class="sb-logo" onclick="goPage('feed')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3.5 14.5l1-3.8a2 2 0 011.9-1.5h9.4a2 2 0 011.9 1.4l1.2 3.9"/>
-        <path d="M2.8 14.5h18.4a1 1 0 011 1.1l-.3 2a1 1 0 01-1 .9H3.1a1 1 0 01-1-.9l-.3-2a1 1 0 011-1.1z"/>
-        <circle cx="7.5" cy="17.5" r="1.6"/>
-        <circle cx="16.5" cy="17.5" r="1.6"/>
-        <path d="M8 9.5V7.8a1 1 0 011-1h6a1 1 0 011 1V9.5"/>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0c0d15" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+        <path d="M4 15.5V12c0-.6.4-1.2 1-1.4l2.2-.8 1.6-2.3c.4-.5 1-.9 1.7-.9h3c.6 0 1.2.3 1.6.8l2 2.4 2.2.8c.6.2 1 .8 1 1.4v3.5"/>
+        <path d="M4 15.5h14.5"/>
+        <circle cx="8" cy="15.5" r="1.7"/>
+        <circle cx="16" cy="15.5" r="1.7"/>
+        <path d="M8.5 10.2h6.2"/>
       </svg>
     </div>
     <div class="nav-items">
@@ -396,6 +405,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
     <div class="content-card">
       <div class="content-scroll" id="content"></div>
+      <div id="ad-banner">
+        <img id="ad-img" src="" alt="">
+        <div class="ad-text">
+          <div class="ad-label" id="ad-label">Sponsor</div>
+          <div class="ad-name" id="ad-name"></div>
+        </div>
+        <a id="ad-link" class="ad-cta" href="#" target="_blank" rel="noopener noreferrer sponsored">Shiko</a>
+      </div>
       <div class="bottom-toolbar">
         <button class="bt-icon active" onclick="goPage('feed')" id="bt-feed">
           <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -894,6 +911,22 @@ async function fetchMessagesForUser() {
   S.messages = Object.values(grouped);
 }
 
+/* ── AD BANNER ── */
+async function fetchAndRenderAd() {
+  const { data } = await sb.from('ads').select('*').eq('active', true).order('created_at', { ascending:false }).limit(1);
+  const banner = document.getElementById('ad-banner');
+  if (!banner) return;
+  const ad = (data && data[0]) || null;
+  S.currentAd = ad;
+  if (!ad) { banner.classList.remove('show'); return; }
+  document.getElementById('ad-img').src = ad.image_url;
+  document.getElementById('ad-name').textContent = ad.advertiser;
+  document.getElementById('ad-link').href = ad.link_url;
+  document.getElementById('ad-label').textContent = S.lang==='sq' ? 'Sponsor' : 'Sponsored';
+  document.getElementById('ad-link').textContent = S.lang==='sq' ? 'Shiko' : 'View';
+  banner.classList.add('show');
+}
+
 /* ── INIT ── */
 window.onload = async () => {
   loadLocalPrefs();
@@ -903,6 +936,7 @@ window.onload = async () => {
   await fetchAllData();
   await fetchSavedForUser();
   await fetchMessagesForUser();
+  await fetchAndRenderAd();
   goPage('feed');
   applyLang();
   if (localStorage.getItem('ck')) document.getElementById('ck').style.display='none';
@@ -930,6 +964,7 @@ function setLang(l) {
   document.documentElement.lang = l;
   applyLang();
   goPage(S.page);
+  if (S.currentAd) fetchAndRenderAd();
 }
 
 function applyLang() {
@@ -1474,6 +1509,7 @@ function renderAdmin(c){
       <div class="atab" onclick="swT('al',this)">${t('all_posts_dash')} (${allPosts.length})</div>
       <div class="atab" onclick="swT('aa',this)">${t('tab_approved')} (${approved.length})</div>
       <div class="atab" onclick="swT('ar',this)">${t('tab_rejected')} (${rejected.length})</div>
+      <div class="atab" onclick="swT('ads',this)">${S.lang==='sq'?'Reklamat':'Ads'}</div>
     </div>
 
     <!-- PENDING APPROVALS -->
@@ -1528,6 +1564,33 @@ function renderAdmin(c){
       ${!rejected.length?`<div class="empty"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg><h3>${t('no_rejected')}</h3></div>`:
         rejected.map(a=>`<div class="pcard"><div class="pct"><div><div class="pnm">${a.name}</div><div class="pmt">${a.email||''}</div></div><span class="sp sp-r">${t('rejected_st')}</span></div></div>`).join('')}
     </div>
+
+    <!-- ADS MANAGEMENT -->
+    <div class="asec" id="ads">
+      <div style="max-width:420px">
+        ${S.currentAd ? `
+        <div class="pcard">
+          <div class="pct">
+            <div style="display:flex;align-items:center;gap:10px">
+              <img src="${S.currentAd.image_url}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;background:var(--bg4)" alt="">
+              <div>
+                <div class="pnm">${S.currentAd.advertiser}</div>
+                <div class="pmt">${S.lang==='sq'?'Aktiv tani':'Currently live'}</div>
+              </div>
+            </div>
+            <span class="sp sp-a">${S.lang==='sq'?'Live':'Live'}</span>
+          </div>
+          <button class="btn btn-d btn-sm" onclick="deleteAd(${S.currentAd.id})">${S.lang==='sq'?'Hiq reklamën':'Remove ad'}</button>
+        </div>
+        <div style="height:14px"></div>
+        ` : `<div class="al al-i" style="margin-bottom:14px">${S.lang==='sq'?'Asnjë reklamë aktive aktualisht. Banner-i nuk shfaqet te përdoruesit.':'No active ad right now. The banner is hidden from users.'}</div>`}
+
+        <div class="fg"><label class="fl">${S.lang==='sq'?'Emri i reklamuesit':'Advertiser name'}</label><input class="fi" id="ad-advertiser" placeholder="${S.lang==='sq'?'p.sh. AutoCity Albania':'e.g. AutoCity Albania'}"></div>
+        <div class="fg"><label class="fl">${S.lang==='sq'?'URL e fotos (logo/banner)':'Image URL (logo/banner)'}</label><input class="fi" id="ad-image" placeholder="https://..."></div>
+        <div class="fg"><label class="fl">${S.lang==='sq'?'Linku kur klikohet':'Link when clicked'}</label><input class="fi" id="ad-link" placeholder="https://..."></div>
+        <button class="btn btn-p" onclick="submitAd()">${S.lang==='sq'?'Publiko reklamën':'Publish ad'}</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1561,6 +1624,26 @@ async function rmList(id){
   if(!confirm(t('del_listing'))) return;
   await sb.from('cars').delete().eq('id', id);
   S.posts=S.posts.filter(p=>p.id!==id);
+  renderAdmin(document.getElementById('content'));
+}
+
+/* ── ADS (admin only) ── */
+async function submitAd(){
+  const advertiser=document.getElementById('ad-advertiser').value.trim();
+  const image=document.getElementById('ad-image').value.trim();
+  const link=document.getElementById('ad-link').value.trim();
+  if(!advertiser||!image||!link){ alert(t('fill_fields')); return; }
+  // Deactivate any existing ad, then insert the new one as active
+  await sb.from('ads').update({ active:false }).eq('active', true);
+  await sb.from('ads').insert({ advertiser, image_url:image, link_url:link, active:true });
+  await fetchAndRenderAd();
+  alert(S.lang==='sq'?'Reklama u publikua!':'Ad published!');
+  renderAdmin(document.getElementById('content'));
+}
+async function deleteAd(id){
+  if(!confirm(S.lang==='sq'?'Hiq reklamën aktive?':'Remove the active ad?')) return;
+  await sb.from('ads').delete().eq('id', id);
+  await fetchAndRenderAd();
   renderAdmin(document.getElementById('content'));
 }
 
