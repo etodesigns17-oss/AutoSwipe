@@ -813,7 +813,8 @@ let S = {
   saved:[], posts:[], apps:[], dealers:[], rentals:[],
   filter:'all', cardIdx:0, boost:'none', filters:{}, page:'feed',
   messages:[],
-  uploadedImgs:[]
+  uploadedImgs:[],
+  currentAd: null
 };
 
 /* ── SAMPLE DATA (kept empty; all data now comes from Supabase) ── */
@@ -1568,7 +1569,7 @@ function renderAdmin(c){
     <!-- ADS MANAGEMENT -->
     <div class="asec" id="ads">
       <div style="max-width:420px">
-        ${S.currentAd ? `
+        ${S.currentAd != null ? `
         <div class="pcard">
           <div class="pct">
             <div style="display:flex;align-items:center;gap:10px">
