@@ -257,8 +257,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .lim-bar{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:var(--warn);}
 
 /* ── ADMIN ── */
-.atabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
-.atab{padding:5px 13px;border-radius:20px;background:var(--bg3);border:1px solid var(--brd);color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;}
+.atabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.atabs::-webkit-scrollbar{display:none;}
+.atab{padding:5px 13px;border-radius:20px;background:var(--bg3);border:1px solid var(--brd);color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .atab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
 .asec{display:none;}
 .asec.active{display:block;}
