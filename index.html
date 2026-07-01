@@ -1482,7 +1482,8 @@ function renderAccount(c){
       <div class="sbox"><div class="sv">${myApps.length}</div><div class="sl">${t('apps_lbl')}</div></div>
     </div>
     <div class="menu-list">
-      ${S.isAdmin?`<div class="mi" onclick="renderAdmin(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('admin_panel')}</div><div class="mi-sub">${S.apps.filter(a=>a.status==='pending').length} ${t('pending_lbl')}</div></div><span class="mi-arr">›</span></div>`:''}
+      ${S.isAdmin?`<div class="mi" onclick="renderAdmin(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('admin_panel')}</div><div class="mi-sub">${S.apps.filter(a=>a.status==='pending').length} ${t('pending_lbl')}</div></div><span class="mi-arr">›</span></div>
+      <div class="mi" onclick="renderAdsManager(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="14" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="18" x2="12" y2="20"/></svg></div><div class="mi-txt"><div class="mi-title">${S.lang==='sq'?'Menaxho Reklamat':'Manage Ads'}</div><div class="mi-sub">${S.currentAd?S.currentAd.advertiser:(S.lang==='sq'?'Asnjë reklamë aktive':'No active ad')}</div></div><span class="mi-arr">›</span></div>`:''}
       <div class="mi" onclick="renderMyPosts(document.getElementById('content'))"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('your_posts')}</div><div class="mi-sub">${mine.length} ${t('posts_count')}</div></div><span class="mi-arr">›</span></div>
       <div class="mi" onclick="goPage('saved')"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></div><div class="mi-txt"><div class="mi-title">${t('saved_cars')}</div><div class="mi-sub">${S.saved.length} ${t('saved_count')}</div></div><span class="mi-arr">›</span></div>
       ${!S.isAdmin&&role==='user'?`
@@ -1630,23 +1631,52 @@ async function rmList(id){
 }
 
 /* ── ADS (admin only) ── */
+function renderAdsManager(c){
+  c.innerHTML=`<div class="view">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
+      <button class="btn btn-g btn-sm" onclick="renderAccount(document.getElementById('content'))">← ${t('back')}</button>
+      <span style="font-size:15px;font-weight:700">${S.lang==='sq'?'Menaxho Reklamat':'Manage Ads'}</span>
+    </div>
+
+    ${S.currentAd != null ? `
+    <div class="pcard" style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:10px">${S.lang==='sq'?'REKLAMA AKTIVE':'ACTIVE AD'}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <img src="${S.currentAd.image_url}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--bg4)" alt="">
+        <div>
+          <div style="font-weight:700;font-size:15px">${S.currentAd.advertiser}</div>
+          <div style="font-size:12px;color:var(--t2);margin-top:3px">${S.currentAd.link_url}</div>
+          <span class="sp sp-a" style="margin-top:5px;display:inline-block">Live</span>
+        </div>
+      </div>
+      <button class="btn btn-d" onclick="deleteAd(${S.currentAd.id})">${S.lang==='sq'?'Hiq reklamën aktive':'Remove active ad'}</button>
+    </div>
+    ` : `<div class="al al-i" style="margin-bottom:16px">${S.lang==='sq'?'Asnjë reklamë aktive. Banner-i është i fshehur nga përdoruesit.':'No active ad. The banner is hidden from all users.'}</div>`}
+
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px">${S.lang==='sq'?'Shto reklamë të re:':'Add new ad:'}</div>
+    <div class="fg"><label class="fl">${S.lang==='sq'?'Emri i reklamuesit':'Advertiser name'}</label><input class="fi" id="ad-advertiser" placeholder="${S.lang==='sq'?'p.sh. AutoCity Albania':'e.g. AutoCity Albania'}"></div>
+    <div class="fg"><label class="fl">${S.lang==='sq'?'URL e fotos (logo/banner)':'Image URL (logo/banner)'}</label><input class="fi" id="ad-image" placeholder="https://..."><div style="font-size:11px;color:var(--t2);margin-top:4px">${S.lang==='sq'?'Ngarko foton diku (p.sh. imgur.com) dhe ngjit linkun këtu':'Upload image somewhere (e.g. imgur.com) and paste the link here'}</div></div>
+    <div class="fg"><label class="fl">${S.lang==='sq'?'Linku kur klikohet':'Click-through link'}</label><input class="fi" id="ad-link" placeholder="https://..."></div>
+    <button class="btn btn-p" onclick="submitAd(true)">${S.lang==='sq'?'Publiko reklamën':'Publish ad'}</button>
+  </div>`;
+}
+
 async function submitAd(){
   const advertiser=document.getElementById('ad-advertiser').value.trim();
   const image=document.getElementById('ad-image').value.trim();
   const link=document.getElementById('ad-link').value.trim();
   if(!advertiser||!image||!link){ alert(t('fill_fields')); return; }
-  // Deactivate any existing ad, then insert the new one as active
   await sb.from('ads').update({ active:false }).eq('active', true);
   await sb.from('ads').insert({ advertiser, image_url:image, link_url:link, active:true });
   await fetchAndRenderAd();
   alert(S.lang==='sq'?'Reklama u publikua!':'Ad published!');
-  renderAdmin(document.getElementById('content'));
+  renderAdsManager(document.getElementById('content'));
 }
 async function deleteAd(id){
   if(!confirm(S.lang==='sq'?'Hiq reklamën aktive?':'Remove the active ad?')) return;
   await sb.from('ads').delete().eq('id', id);
   await fetchAndRenderAd();
-  renderAdmin(document.getElementById('content'));
+  renderAdsManager(document.getElementById('content'));
 }
 
 function renderMyPosts(c){
